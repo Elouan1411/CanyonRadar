@@ -3,7 +3,17 @@ export default async function handler(req, res) {
 
   const API_KEY = process.env.ORS_API_KEY;
 
-  const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${API_KEY}&start=${start}&end=${end}`;
+  const startCoords = start.split(",").map(Number);
+  const endCoords = end.split(",").map(Number);
+
+  // Construire l'URL avec encodage
+  const url =
+    `https://api.openrouteservice.org/v2/directions/driving-car?` +
+    `api_key=${encodeURIComponent(API_KEY)}` +
+    `&start=${encodeURIComponent(`${startCoords[0]},${startCoords[1]}`)}` +
+    `&end=${encodeURIComponent(`${endCoords[0]},${endCoords[1]}`)}`;
+
+  console.log("url:", url);
 
   try {
     const response = await fetch(url);

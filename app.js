@@ -4,7 +4,7 @@ const result = document.getElementById("result");
 btn.addEventListener("click", async () => {
   // Exemple de points
   const start = [9.484291, 45.87767];
-  const end = [9.506779, 45.883766];
+  const end = [9.19, 45.4642];
 
   try {
     const res = await fetch(
