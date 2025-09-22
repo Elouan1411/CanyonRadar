@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const { start, end } = req.query; // start et end : "lat,lon" ou "lon,lat"
 
-  const API_KEY = process.env.ORS_API_KEY;
+  const API_KEY = env.ORS_API_KEY;
 
   const startCoords = start.split(",").map(Number);
   const endCoords = end.split(",").map(Number);
