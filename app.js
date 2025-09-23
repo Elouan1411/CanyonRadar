@@ -35,9 +35,8 @@ btn.addEventListener("click", async () => {
 
     // Récupérer tout les potentiels canyon candidats
     let candidats = getCandidats(maxTime, start);
-    return;
-    let data = await callAPIServeur();
-    displayResult(data);
+    let data = await callAPIServeur(candidats);
+    displayResult(data, candidats, maxTime);
 });
 
 let radiosChoiceLocation = document.querySelectorAll(
@@ -172,12 +171,12 @@ async function getLocation() {
     });
 }
 
-async function callAPIServeur() {
+async function callAPIServeur(candidats) {
     try {
         // Destinations
         // const end = new Array(5).fill(null).map(() => [9.19, 45.4642]);
 
-        const end = dataDB.map((item) => [item.longitude, item.latitude]);
+        const end = candidats.map((item) => [item.longitude, item.latitude]);
         console.log(end);
 
         const endStr = encodeURIComponent(JSON.stringify(end));
@@ -206,17 +205,33 @@ async function callAPIServeur() {
     }
 }
 
-function displayResult(data) {
-    // Affichage des distances et durées pour toutes les destinations
-    const infos = data.durations
-        .map((dur, i) => {
-            const dist = data.distances[i];
-            return `Destination ${i + 1}: ${Math.round(
-                dist / 1000
-            )} km, ${Math.round(dur / 60)} min`;
-        })
-        .join("\n");
+function displayResult(data, candidats, maxTime) {
+    // On crée un tableau vide pour stocker les phrases
+    let phrases = [];
 
+    // On parcourt toutes les destinations
+    for (let i = 0; i < data.durations.length; i++) {
+        let duree = data.durations[i]; // temps en secondes
+        let distance = data.distances[i]; // distance en mètres
+        let nom = candidats[i].name; // nom du candidat
+
+        // On arrondit la distance en km et la durée en minutes
+        let distanceKm = Math.round(distance / 1000);
+        let dureeMin = Math.round(duree / 60);
+
+        if (dureeMin <= maxTime) {
+            // On crée la phrase pour ce candidat
+            let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
+
+            // On ajoute la phrase au tableau
+            phrases.push(phrase);
+        }
+    }
+
+    // On transforme le tableau de phrases en un seul texte avec des sauts de ligne
+    let infos = phrases.join("\n");
+
+    // On affiche le texte dans l'élément result
     result.textContent = infos;
 }
 
