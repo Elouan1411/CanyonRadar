@@ -35,7 +35,9 @@ btn.addEventListener("click", async () => {
 
     // Récupérer tout les potentiels canyon candidats
     let candidats = getCandidats(maxTime, start);
+    console.log("jai les candidats");
     let data = await callAPIServeur(candidats);
+    console.log("data:", data);
     displayResult(data, candidats, maxTime);
 });
 
@@ -199,6 +201,7 @@ async function callAPIServeur(candidats) {
                 "Aucun itinéraire trouvé pour ces coordonnées.";
             return;
         }
+        console.log("data récupéré par l'api");
         return data;
     } catch (err) {
         result.textContent = "Erreur : " + err;
@@ -209,6 +212,7 @@ async function callAPIServeur(candidats) {
 function displayResult(data, candidats, maxTime) {
     // On crée un tableau vide pour stocker les phrases
     let phrases = [];
+    let vide = true;
 
     // On parcourt toutes les destinations
     for (let i = 0; i < data.durations.length; i++) {
@@ -221,12 +225,18 @@ function displayResult(data, candidats, maxTime) {
         let dureeMin = Math.round(duree / 60);
 
         if (dureeMin <= maxTime) {
+            vide = false;
             // On crée la phrase pour ce candidat
             let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
+            console.log(phrase);
 
             // On ajoute la phrase au tableau
             phrases.push(phrase);
         }
+    }
+
+    if (vide) {
+        phrases.push("aucun canyon trouvé pour ce temps de voiture");
     }
 
     // On transforme le tableau de phrases en un seul texte avec des sauts de ligne
