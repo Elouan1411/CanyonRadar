@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
     const { start, end } = req.query;
-    console.log(end);
+
     const API_KEY = process.env.ORS_API_KEY;
 
     if (!start || !end) {

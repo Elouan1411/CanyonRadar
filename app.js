@@ -128,7 +128,7 @@ async function doSearch(query) {
 
 async function loadData() {
     try {
-        const res = await fetch("/process/data.json"); // JSON dans public/
+        const res = await fetch("/data/data.json"); // JSON dans public/
         dataDB = await res.json(); // met le tableau dans la variable globale
     } catch (err) {
         console.error("Erreur en chargeant dataDB :", err);
@@ -136,6 +136,7 @@ async function loadData() {
 }
 
 async function getLocation() {
+    //TODO: Redemander la localisation si il a refusé
     if (!navigator.geolocation) {
         result.textContent =
             "La géolocalisation n’est pas supportée par ce navigateur.";
@@ -281,7 +282,7 @@ function getCandidats(maxTime, start) {
             });
         }
     });
-    console.log("candidats:", candidats);
+    //TODO: Comprendre et gérer les cas avec distance de 0km
     return candidats;
 }
 

@@ -1,2 +1,7 @@
 optimiser le json pour enlever les lignes inutiles et réduire les noms des clés
 supprimer les points depart arrivé parking... pour garder que info
+diviser la requete en plusieurs si y a plus de 600 canyon (ou au debut mettre juste un message d'erreur)
+ajuster la vitesse moyenne en voiture
+
+
+adapté au format mobile
