@@ -19,10 +19,18 @@
             Select Location
         </label>
 
-        <div class="divSearchCity">
-            <input type="text" id="search" placeholder="Entrez une ville" style="width: 250px; padding: 5px" />
-            <ul id="suggestions"></ul>
-        </div>
+        <label for="maxTime">Maximum driving time</label>
+        <select id="maxTime" name="maxTime">
+            <option value="15">15 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">1 h</option>
+            <option value="90">1 h 30 min</option>
+            <option value="120">2 h</option>
+            <option value="150">2 h 30 min</option>
+            <option value="180">3 h</option>
+            <option value="240">4 h</option>
+        </select>
 
         <button id="testBtn">Tester l'API</button>
         <pre id="result"></pre>

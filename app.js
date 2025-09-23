@@ -4,103 +4,75 @@ let dataDB = [];
 let suggestions, searchInput;
 // Debounce pour limiter les requêtes
 let timeout;
+let start; //TODO: faire pour ne pas que ca soit global²
+const AVERAGE_SPEED = 80;
 
+// Clique du bouton de recherche
 btn.addEventListener("click", async () => {
-    let start;
-    s;
-    if (!navigator.geolocation) {
-        result.textContent =
-            "La géolocalisation n’est pas supportée par ce navigateur.";
-        return;
-    }
-
-    try {
-        // Récupération des coordonnées GPS de l'utilisateur
-        start = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    resolve([
-                        position.coords.longitude,
-                        position.coords.latitude,
-                    ]); // ORS attend [lon, lat]
-                },
-                (error) => {
-                    switch (error.code) {
-                        case error.PERMISSION_DENIED:
-                            reject(
-                                "Permission refusée pour accéder à la géolocalisation."
-                            );
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            reject("Position indisponible.");
-                            break;
-                        case error.TIMEOUT:
-                            reject("La requête de géolocalisation a expiré.");
-                            break;
-                        default:
-                            reject(
-                                "Erreur inconnue lors de la géolocalisation."
-                            );
-                    }
-                }
-            );
-        });
-
-        console.log("Coordonnées de départ :", start);
-        result.textContent = `Coordonnées récupérées : ${start[1]}, ${start[0]}`;
-
-        // Destinations
-        // const end = new Array(5).fill(null).map(() => [9.19, 45.4642]);
-
-        const X = 150; // nombre de destinations à prendre
-        const end = dataDB
-            .slice(0, X)
-            .map((item) => [item.longitude, item.latitude]);
-        console.log(end);
-
-        const endStr = encodeURIComponent(JSON.stringify(end));
-
-        // Appel à l'API Matrix
-        const res = await fetch(
-            `/api/duration?start=${start.join(",")}&end=${endStr}`
-        );
-        const data = await res.json();
-
-        // Gestion des erreurs de l'API
-        if (data.error) {
-            result.textContent = "Coordonnées incorrectes ou non routables.";
-            return;
-        }
-
-        if (!data.durations || !data.durations.length) {
-            result.textContent =
-                "Aucun itinéraire trouvé pour ces coordonnées.";
-            return;
-        }
-
-        // Affichage des distances et durées pour toutes les destinations
-        const infos = data.durations
-            .map((dur, i) => {
-                const dist = data.distances[i];
-                return `Destination ${i + 1}: ${Math.round(
-                    dist / 1000
-                )} km, ${Math.round(dur / 60)} min`;
-            })
-            .join("\n");
-
-        result.textContent = infos;
-    } catch (err) {
-        result.textContent = "Erreur : " + err;
-        console.error(err);
-    }
-
     // Récupérer le choix de l'utilisateur (checkbox / radio)
     let choix = document.querySelector(
         'input[name="choiceLocation"]:checked'
     )?.value;
     if (choix) {
-        result.textContent += `\nLe choix sélectionné est : ${choix}`;
+        console.log(`Le choix sélectionné est : ${choix}`);
     }
+
+    if (choix == "selectLocation") {
+        if (start == undefined) {
+            console.log("barre de recherche pas complété");
+            result.textContent =
+                "Erreur, vous n'avez pas compléter comme il faut la barre de recherche";
+            return;
+        }
+    } else {
+        await getLocation();
+    }
+    console.log("Coordonnées de départ :", start);
+    result.textContent = `Coordonnées récupérées : ${start[1]}, ${start[0]}`;
+
+    // Récupérer le temps que l'utilisateur a choisi
+    let maxTime = getMaxTime();
+
+    // Récupérer tout les potentiels canyon candidats
+    let candidats = getCandidats(maxTime, start);
+    return;
+    let data = await callAPIServeur();
+    displayResult(data);
+});
+
+let radiosChoiceLocation = document.querySelectorAll(
+    'input[name="choiceLocation"]'
+);
+// Création du listener pour currentLocation
+radiosChoiceLocation[0].addEventListener("change", function () {
+    let divSearchCity = document.getElementById("divSearchCity");
+    if (divSearchCity) {
+        divSearchCity.remove();
+    }
+});
+
+// Création de la barre de recherche si choix du select Location
+radiosChoiceLocation[1].addEventListener("change", function () {
+    // Création de la div
+    let divSearch = document.createElement("div");
+    divSearch.id = "divSearchCity";
+    divSearch.innerHTML = `<input type="text" id="search" placeholder="Entrez une ville"/><ul id="suggestions"></ul>`;
+    // Insertion dans le code html juste après le 2e label
+    document
+        .querySelectorAll("label")[1]
+        .insertAdjacentElement("afterend", divSearch);
+
+    // Attributions des valeurs aux deux variables searchInput et suggestions
+    searchInput = document.getElementById("search");
+    suggestions = document.getElementById("suggestions");
+
+    // Lancement d'un listener quand on tape dans la barre de recherche -> lance la fonction doSearch
+    searchInput.addEventListener("input", () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            doSearch(searchInput.value.trim());
+        }, 300);
+    });
 });
 
 async function doSearch(query) {
@@ -141,11 +113,11 @@ async function doSearch(query) {
                 suggestions.innerHTML = "";
 
                 // Récupérer les coordonnées
-                const lat = city.lat;
-                const lon = city.lon;
-                alert(
-                    `Ville: ${city.display_name}\nLatitude: ${lat}\nLongitude: ${lon}`
-                );
+                // alert(
+                //     `Ville: ${city.display_name}\nLatitude: ${lat}\nLongitude: ${lon}`
+                // );
+                start = [parseFloat(city.lon), parseFloat(city.lat)];
+                console.log("start from search :", start);
             });
 
             suggestions.appendChild(li);
@@ -164,40 +136,139 @@ async function loadData() {
     }
 }
 
-let radiosChoiceLocation = document.querySelectorAll(
-    'input[name="choiceLocation"]'
-);
-// Création du listener pour currentLocation
-radiosChoiceLocation[0].addEventListener("change", function () {
-    let divSearchCity = document.getElementById("divSearchCity");
-    if (divSearchCity) {
-        divSearchCity.remove();
+async function getLocation() {
+    if (!navigator.geolocation) {
+        result.textContent =
+            "La géolocalisation n’est pas supportée par ce navigateur.";
+        return;
     }
-});
-
-// Création de la barre de recherche si choix du select Location
-radiosChoiceLocation[1].addEventListener("change", function () {
-    // Création de la div
-    let divSearch = document.createElement("div");
-    divSearch.id = "divSearchCity";
-    divSearch.innerHTML = `<input type="text" id="search" placeholder="Entrez une ville"/><ul id="suggestions"></ul>`;
-    // Insertion dans le code html juste après le 2e label
-    document
-        .querySelectorAll("label")[1]
-        .insertAdjacentElement("afterend", divSearch);
-
-    // Attributions des valeurs aux deux variables searchInput et suggestions
-    searchInput = document.getElementById("search");
-    suggestions = document.getElementById("suggestions");
-
-    // Lancement d'un listener quand on tape dans la barre de recherche -> lance la fonction doSearch
-    searchInput.addEventListener("input", () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            doSearch(searchInput.value.trim());
-        }, 300);
+    //TODO: récupérer la ville en fonction des coordonnées pour afficher
+    // Récupération des coordonnées GPS de l'utilisateur
+    start = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve([position.coords.longitude, position.coords.latitude]); // ORS attend [lon, lat]
+            },
+            (error) => {
+                switch (
+                    error.code //TODO: ecrire les messages d'erreurs au bon endroit
+                ) {
+                    case error.PERMISSION_DENIED:
+                        reject(
+                            "Permission refusée pour accéder à la géolocalisation."
+                        );
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        reject("Position indisponible.");
+                        break;
+                    case error.TIMEOUT:
+                        reject("La requête de géolocalisation a expiré.");
+                        break;
+                    default:
+                        reject("Erreur inconnue lors de la géolocalisation.");
+                }
+            }
+        );
     });
-});
+}
+
+async function callAPIServeur() {
+    try {
+        // Destinations
+        // const end = new Array(5).fill(null).map(() => [9.19, 45.4642]);
+
+        const end = dataDB.map((item) => [item.longitude, item.latitude]);
+        console.log(end);
+
+        const endStr = encodeURIComponent(JSON.stringify(end));
+
+        // Appel à l'API Matrix
+        const res = await fetch(
+            `/api/duration?start=${start.join(",")}&end=${endStr}`
+        );
+        const data = await res.json();
+
+        // Gestion des erreurs de l'API
+        if (data.error) {
+            result.textContent = "Coordonnées incorrectes ou non routables.";
+            return;
+        }
+
+        if (!data.durations || !data.durations.length) {
+            result.textContent =
+                "Aucun itinéraire trouvé pour ces coordonnées.";
+            return;
+        }
+        return data;
+    } catch (err) {
+        result.textContent = "Erreur : " + err;
+        console.error(err);
+    }
+}
+
+function displayResult(data) {
+    // Affichage des distances et durées pour toutes les destinations
+    const infos = data.durations
+        .map((dur, i) => {
+            const dist = data.distances[i];
+            return `Destination ${i + 1}: ${Math.round(
+                dist / 1000
+            )} km, ${Math.round(dur / 60)} min`;
+        })
+        .join("\n");
+
+    result.textContent = infos;
+}
+
+function getMaxTime() {
+    return Number(document.getElementById("maxTime").value);
+}
+
+function toRadians(deg) {
+    return deg * (Math.PI / 180);
+}
+
+function haversine(start, end) {
+    const R = 6371.0; // km
+
+    const lon1 = start[0];
+    const lat1 = start[1];
+    const lon2 = end[0];
+    const lat2 = end[1];
+
+    const dlat = lat2 - lat1;
+    const dlon = lon2 - lon1;
+
+    const sinDlat2 = Math.sin(dlat / 2);
+    const sinDlon2 = Math.sin(dlon / 2);
+
+    const a =
+        sinDlat2 * sinDlat2 +
+        Math.cos(lat1) * Math.cos(lat2) * sinDlon2 * sinDlon2;
+    const c = 2 * Math.asin(Math.sqrt(a));
+
+    return R * c;
+}
+
+function getCandidats(maxTime, start) {
+    let startRad = [toRadians(start[0]), toRadians(start[1])];
+    let candidats = [];
+    let maxDistance = AVERAGE_SPEED * (maxTime / 60);
+    dataDB.forEach((canyon) => {
+        let endRad = [toRadians(canyon.longitude), toRadians(canyon.latitude)];
+        let dist = haversine(startRad, endRad);
+        if (dist <= maxDistance && canyon.styleUrl == "#msn_info") {
+            candidats.push({
+                name: canyon.name,
+                latitude: canyon.latitude,
+                longitude: canyon.longitude,
+                distance_km: Number(dist.toFixed(2)), //TODO: supprimer la distance ca sert à rien
+            });
+        }
+    });
+    console.log("candidats:", candidats);
+    return candidats;
+}
 
 // Appel au démarrage
 loadData();
