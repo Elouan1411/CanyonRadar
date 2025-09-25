@@ -16,7 +16,7 @@ btn.addEventListener("click", async () => {
     if (choix) {
         console.log(`Le choix sélectionné est : ${choix}`);
     }
-
+    //TODO: faire plutot un case
     if (choix == "selectLocation") {
         if (start == undefined) {
             console.log("barre de recherche pas complété");
@@ -24,9 +24,12 @@ btn.addEventListener("click", async () => {
                 "Erreur, vous n'avez pas compléter comme il faut la barre de recherche";
             return;
         }
+    } else if (choix == "coordonnee") {
+        start = getCoordMannuelUser(start);
     } else {
         await getLocation();
     }
+    console.log("le start :", start);
     console.log("Coordonnées de départ :", start);
     result.textContent = `Coordonnées récupérées : ${start[1]}, ${start[0]}`;
 
@@ -46,14 +49,24 @@ let radiosChoiceLocation = document.querySelectorAll(
 );
 // Création du listener pour currentLocation
 radiosChoiceLocation[0].addEventListener("change", function () {
+    // Suppression des inputs
     let divSearchCity = document.getElementById("divSearchCity");
     if (divSearchCity) {
         divSearchCity.remove();
+    }
+    let divCoordonnee = document.getElementById("divCoordonnee");
+    if (divCoordonnee) {
+        divCoordonnee.remove();
     }
 });
 
 // Création de la barre de recherche si choix du select Location
 radiosChoiceLocation[1].addEventListener("change", function () {
+    // Suppression de l'input coordonnnee
+    let divCoordonnee = document.getElementById("divCoordonnee");
+    if (divCoordonnee) {
+        divCoordonnee.remove();
+    }
     // Création de la div
     let divSearch = document.createElement("div");
     divSearch.id = "divSearchCity";
@@ -74,6 +87,22 @@ radiosChoiceLocation[1].addEventListener("change", function () {
             doSearch(searchInput.value.trim());
         }, 300);
     });
+});
+
+radiosChoiceLocation[2].addEventListener("change", function () {
+    // Suppression de l'input search
+    let divSearchCity = document.getElementById("divSearchCity");
+    if (divSearchCity) {
+        divSearchCity.remove();
+    }
+    // Création de la div
+    let divSearch = document.createElement("div");
+    divSearch.id = "divCoordonnee";
+    divSearch.innerHTML = `<input type="text" id="coordonnee" placeholder="46.728250, 8.183964"/>`;
+    // Insertion dans le code html juste après le 2e label
+    document
+        .querySelectorAll("label")[2]
+        .insertAdjacentElement("afterend", divSearch);
 });
 
 async function doSearch(query) {
@@ -294,6 +323,19 @@ function getCandidats(maxTime, start) {
     });
     //TODO: Comprendre et gérer les cas avec distance de 0km
     return candidats;
+}
+
+function getCoordMannuelUser(start) {
+    let coordonnee = document.getElementById("coordonnee").value;
+    let regex = /(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/;
+    let match = coordonnee.match(regex);
+
+    if (match) {
+        let lat = parseFloat(match[1]);
+        let lng = parseFloat(match[2]);
+        start = [lng, lat];
+    }
+    return start;
 }
 
 // Appel au démarrage
