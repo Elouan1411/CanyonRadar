@@ -2,41 +2,55 @@
 <html lang="fr">
     <head>
         <meta charset="UTF-8" />
-        <title>Test API Canyon</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <title>Canyon Radar</title>
         <link rel="stylesheet" type="text/css" href="reset.css" />
         <link rel="stylesheet" type="text/css" href="styles.css" />
         <script src="app.js" defer></script>
     </head>
     <body>
-        <h1>Test API Canyon</h1>
-        <h2>Select location</h2>
-        <label>
-            <input type="radio" name="choiceLocation" value="currentLocation" checked />
-            Current Location
-        </label>
-        <label>
-            <input type="radio" name="choiceLocation" value="selectLocation" />
-            Select Location
-        </label>
-        <label>
-            <input type="radio" name="choiceLocation" value="coordonnee" />
-            Coordonnées GPS
-        </label>
-
-        <label for="maxTime">Maximum driving time</label>
-        <select id="maxTime" name="maxTime">
-            <option value="15">15 min</option>
-            <option value="30" selected>30 min</option>
-            <option value="45">45 min</option>
-            <option value="60">1 h</option>
-            <option value="90">1 h 30 min</option>
-            <option value="120">2 h</option>
-            <option value="150">2 h 30 min</option>
-            <option value="180">3 h</option>
-            <option value="240">4 h</option>
-        </select>
-
-        <button id="testBtn">Tester l'API</button>
-        <pre id="result"></pre>
+        <h1>Canyon Radar</h1>
+        <div class="divContent">
+            <div class="divSearch">
+                <div class="selectLocation">
+                    <h2>Select location</h2>
+                    <label>
+                        <input type="radio" name="choiceLocation" value="currentLocation" checked />
+                        Current Location
+                    </label>
+                    <label>
+                        <input type="radio" name="choiceLocation" value="selectLocation" />
+                        Select Location
+                    </label>
+                    <label>
+                        <input type="radio" name="choiceLocation" value="coordonnee" />
+                        Coordonnées GPS
+                    </label>
+                </div>
+                <div class="divMaxTime">
+                    <h2>Maximum driving time</h2>
+                    <select id="maxTime" name="maxTime">
+                        <option value="15">15 min</option>
+                        <option value="30" selected>30 min</option>
+                        <option value="45">45 min</option>
+                        <option value="60">1 h</option>
+                        <option value="90">1 h 30 min</option>
+                        <option value="120">2 h</option>
+                        <option value="150">2 h 30 min</option>
+                        <option value="180">3 h</option>
+                        <option value="240">4 h</option>
+                    </select>
+                </div>
+                <div class="divButton">
+                    <button id="testBtn">Tester l'API</button>
+                    <button id="export">Export to Excel</button>
+                </div>
+            </div>
+            <div class="divResult">
+                <pre id="result"></pre>
+            </div>
+        </div>
     </body>
+    <footer>Crédit Elouan</footer>
 </html>

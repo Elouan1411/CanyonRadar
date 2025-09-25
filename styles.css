@@ -1,9 +1,17 @@
-body div#divSearchCity {
+html {
+    font-size: 24px;
+    color: black;
+    background-color: #f8f9fa;
+    font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+        "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+}
+
+div#divSearchCity {
     position: relative;
     display: inline-block;
 }
 
-body div ul#suggestions {
+div ul#suggestions {
     position: absolute;
     top: 100%;
     left: 0;
@@ -17,11 +25,107 @@ body div ul#suggestions {
     margin: 0;
     z-index: 9999;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    font-family: 'Arial';
+    font-family: "Arial";
     font-size: 16px;
 }
 
-body div input#search{
+div input#search {
     width: 250px;
     padding: 5px;
+}
+
+h1 {
+    position: fixed;
+    padding: 4rem 0;
+    width: 100%;
+    text-align: center;
+    background-image: url(images/panorama.jpg);
+    color: white;
+    font-weight: 800;
+    font-size: 3rem;
+}
+
+h2 {
+    font-weight: bold;
+    margin: 0.5rem 0.2rem;
+    font-size: 1.1rem;
+}
+
+div.divContent {
+    display: flex;
+    max-width: 40rem;
+    padding: 0.2rem;
+    margin: 0 auto;
+    height: 100vh;
+    align-items: center;
+}
+
+div.divSearch {
+    width: 60%;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+}
+
+div.divResult {
+    flex: 1;
+}
+
+div.selectLocation {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+}
+
+div.divMaxTime {
+    flex: 1;
+}
+
+div.divButton {
+    width: 100%;
+}
+
+div.divButton button {
+    width: 100%;
+    display: block;
+    border-radius: 10px;
+    border: solid 0.2px rgb(144, 144, 144);
+    padding: 0.4rem;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+}
+
+div button#testBtn {
+    background-color: #255991;
+    color: white;
+    font-weight: bold;
+}
+
+div button#export {
+    background-color: white;
+    color: black;
+}
+
+div select#maxTime {
+    width: 100%;
+    font-size: 1rem;
+    border-radius: 5px;
+    background-color: white;
+}
+
+footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.4rem;
+    text-align: center;
+    border-top: 1px solid #ddd;
+    z-index: 10;
+    font-size: 0.8rem;
+    color: gray;
+}
+
+div.selectLocation label {
+    margin-bottom: 0.6rem;
 }
