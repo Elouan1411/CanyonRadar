@@ -1,9 +1,17 @@
-html {
+html,
+body {
     font-size: 24px;
     color: black;
     background-color: #f8f9fa;
     font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
         "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 div#divSearchCity {
@@ -16,33 +24,38 @@ div ul#suggestions {
     top: 100%;
     left: 0;
     right: 0;
-    border: 1px solid #ccc;
     background: white;
     max-height: 200px;
     overflow-y: auto;
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin-left: 0.3rem;
+    margin-top: -0.6rem;
     z-index: 9999;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     font-family: "Arial";
     font-size: 16px;
+    width: calc(85% + 0.12rem * 2);
 }
 
-div input#search {
-    width: 250px;
-    padding: 5px;
+input#search,
+select#maxTime,
+input#coordonnee {
+    border-radius: 5px;
+    font-size: 1rem;
+    background-color: white;
+    width: 85%;
+    border-color: grey;
+    padding: 0.12rem;
+    margin-left: 0.3rem;
+    margin-bottom: 0.6rem;
 }
 
-h1 {
-    position: fixed;
-    padding: 4rem 0;
-    width: 100%;
-    text-align: center;
-    background-image: url(images/panorama.jpg);
-    color: white;
-    font-weight: 800;
-    font-size: 3rem;
+select {
+    position: static;
+    margin: 0;
+    padding: 0;
+    top: 100%;
 }
 
 h2 {
@@ -51,24 +64,47 @@ h2 {
     font-size: 1.1rem;
 }
 
+h1 {
+    padding: 4rem 0;
+    width: 100%;
+    text-align: center;
+    background-image: url(images/beau-paysage-de-cascade-crop.jpg);
+    background-size: cover;
+    /* background-position: center; */
+    color: white;
+    font-weight: 800;
+    font-size: 3rem;
+}
+
+.wrapper {
+    flex: 1; /* prend tout l’espace restant sous le h1 */
+    display: flex;
+    justify-content: center; /* centre horizontalement */
+    /* align-items: center; */
+    /* position: fixed; */
+    /* left: 50%; */
+    /* top: 19rem; */
+    /* transform: translate(-50%, -50%); */
+}
 div.divContent {
     display: flex;
-    max-width: 40rem;
-    padding: 0.2rem;
-    margin: 0 auto;
-    height: 100vh;
+    flex-direction: column;
     align-items: center;
+    width: 42rem;
+    max-width: 95vw;
 }
 
 div.divSearch {
-    width: 60%;
+    width: 100%;
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     padding: 0.5rem;
 }
 
 div.divResult {
-    flex: 1;
+    width: 100%;
+    margin-top: 1rem;
 }
 
 div.selectLocation {
@@ -106,13 +142,6 @@ div button#export {
     color: black;
 }
 
-div select#maxTime {
-    width: 100%;
-    font-size: 1rem;
-    border-radius: 5px;
-    background-color: white;
-}
-
 footer {
     position: fixed;
     bottom: 0;
@@ -121,11 +150,18 @@ footer {
     padding: 0.4rem;
     text-align: center;
     border-top: 1px solid #ddd;
-    z-index: 10;
+    z-index: 10000;
     font-size: 0.8rem;
     color: gray;
+    background-color: #f8f9fa;
 }
 
 div.selectLocation label {
     margin-bottom: 0.6rem;
+}
+
+@media screen and (max-width: 600px) {
+    div.divSearch {
+        flex-direction: column;
+    }
 }

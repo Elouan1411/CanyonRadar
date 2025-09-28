@@ -243,6 +243,9 @@ function displayResult(data, candidats, maxTime) {
     let phrases = [];
     let vide = true;
 
+    let divResult = document.querySelector(".divResult");
+    let list_canyon = document.createElement("ul");
+
     // On parcourt toutes les destinations
     for (let i = 0; i < data.durations.length; i++) {
         let duree = data.durations[i]; // temps en secondes
@@ -257,12 +260,16 @@ function displayResult(data, candidats, maxTime) {
             vide = false;
             // On crée la phrase pour ce candidat
             let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
-            console.log(phrase);
 
-            // On ajoute la phrase au tableau
-            phrases.push(phrase);
+            let canyon = document.createElement("li");
+            canyon.classList.add("canyon");
+            canyon.textContent = phrase;
+
+            divResult.appendChild(canyon);
         }
     }
+
+    divResult.appendChild(list_canyon);
 
     if (vide) {
         phrases.push("aucun canyon trouvé pour ce temps de voiture");
