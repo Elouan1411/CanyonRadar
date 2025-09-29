@@ -49,6 +49,7 @@ input#coordonnee {
     padding: 0.12rem;
     margin-left: 0.3rem;
     margin-bottom: 0.6rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* petite ombre */
 }
 
 select {
@@ -92,6 +93,7 @@ div.divContent {
     align-items: center;
     width: 42rem;
     max-width: 95vw;
+    padding: 0.5rem;
 }
 
 div.divSearch {
@@ -99,7 +101,6 @@ div.divSearch {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    padding: 0.5rem;
 }
 
 div.divResult {
@@ -129,6 +130,8 @@ div.divButton button {
     padding: 0.4rem;
     font-size: 1rem;
     margin-bottom: 0.6rem;
+
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* petite ombre */
 }
 
 div button#testBtn {
@@ -154,6 +157,70 @@ footer {
     font-size: 0.8rem;
     color: gray;
     background-color: #f8f9fa;
+    /* TODO: on ne peut pas voir ce que y a en dessous du footer      */
+    /* TODO: et faire plutot un footer qu'on voit que en descendant en bas de la page */
+}
+
+div.divResult ul li.canyon {
+    width: 100%;
+    border-radius: 10px;
+    border: 0.2px solid #ddd;
+    padding: 0.8rem;
+    font-size: 1rem;
+    background-color: white;
+    display: grid;
+    align-items: center;
+    grid-template-columns: repeat(2, 1fr);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* petite ombre */
+    gap: 10px;
+}
+
+.bold {
+    font-weight: 800;
+}
+
+.time {
+    font-size: 1rem;
+}
+
+.canyon-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 colonnes */
+    gap: 15px; /* espace entre les cartes */
+    list-style: none; /* enlève les puces */
+    padding: 0;
+}
+
+li.canyon span.right {
+    justify-self: end;
+}
+
+#maxTime {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* petite ombre */
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.time,
+.note,
+.distance {
+    font-size: 0.9em;
+    font-weight: lighter;
+}
+
+.distance {
+    font-size: 0.8rem;
+}
+
+.note {
+    margin-right: 0.2rem;
+}
+
+.star {
+    display: inline-block;
+    font-size: 0.9rem;
 }
 
 div.selectLocation label {
@@ -162,6 +229,11 @@ div.selectLocation label {
 
 @media screen and (max-width: 600px) {
     div.divSearch {
+        flex-direction: column;
+    }
+
+    .canyon-list {
+        display: flex;
         flex-direction: column;
     }
 }

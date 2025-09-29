@@ -9,6 +9,9 @@ const AVERAGE_SPEED = 80;
 
 // Clique du bouton de recherche
 btn.addEventListener("click", async () => {
+    // Supprimer les anciens resultats
+    deleteOldResult();
+
     // Récupérer le choix de l'utilisateur (checkbox / radio)
     let choix = document.querySelector(
         'input[name="choiceLocation"]:checked'
@@ -243,14 +246,21 @@ function displayResult(data, candidats, maxTime) {
     let phrases = [];
     let vide = true;
 
+    //supprimer l'ancienne div avec tout ce que y a dedans si elle existe
     let divResult = document.querySelector(".divResult");
-    let list_canyon = document.createElement("ul");
+    let list_canyon = document.querySelector(".canyon-list");
+
+    if (!list_canyon) {
+        list_canyon = document.createElement("ul");
+        list_canyon.classList.add("canyon-list");
+        divResult.appendChild(list_canyon);
+    }
 
     // On parcourt toutes les destinations
     for (let i = 0; i < data.durations.length; i++) {
         let duree = data.durations[i]; // temps en secondes
         let distance = data.distances[i]; // distance en mètres
-        let nom = candidats[i].name; // nom du candidat
+        let nomNote = candidats[i].name; // nom du candidat
 
         // On arrondit la distance en km et la durée en minutes
         let distanceKm = Math.round(distance / 1000);
@@ -259,17 +269,38 @@ function displayResult(data, candidats, maxTime) {
         if (dureeMin <= maxTime) {
             vide = false;
             // On crée la phrase pour ce candidat
-            let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
+            // let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
+            let parts = nomNote.split(" ");
+            let note = parts.pop(); // dernier élément
+            let nom = parts.join(" "); // tout le reste
+
+            let codeEtoile = "";
+            for (let i = 0; i < Math.trunc(note); i++) {
+                codeEtoile += `<span class="star">
+                                    <i class="fa-solid fa-star" style="color: #ffd43b"></i>
+                                </span>`;
+            }
+            if (note - Math.floor(note) >= 0.5) {
+                codeEtoile += `<span class="star">
+                                    <i class="fa-solid fa-star-half" style="color: #ffd43b"></i>
+                                </span>`;
+            }
+
+            let codeListe = `<p class="bold">${nom}</p>
+                            <span class="time right">${dureeMin} min</span>
+                            <div class="divNote">
+                                <span class="note">${note}</span>
+                                ${codeEtoile}
+                            </div>
+                            <span class="distance right">${distanceKm} km</span>`;
 
             let canyon = document.createElement("li");
             canyon.classList.add("canyon");
-            canyon.textContent = phrase;
+            canyon.innerHTML = codeListe;
 
-            divResult.appendChild(canyon);
+            list_canyon.appendChild(canyon);
         }
     }
-
-    divResult.appendChild(list_canyon);
 
     if (vide) {
         phrases.push("aucun canyon trouvé pour ce temps de voiture");
@@ -343,6 +374,13 @@ function getCoordMannuelUser(start) {
         start = [lng, lat];
     }
     return start;
+}
+
+function deleteOldResult() {
+    let partDelete = document.querySelector("div.divResult ul.canyon-list");
+    if (partDelete) {
+        partDelete.remove();
+    }
 }
 
 // Appel au démarrage
