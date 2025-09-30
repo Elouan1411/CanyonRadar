@@ -1,10 +1,20 @@
-optimiser le json pour enlever les lignes inutiles et réduire les noms des clés
-supprimer les points depart arrivé parking... pour garder que info
+mettre le point du parking si il existe
+
 diviser la requete en plusieurs si y a plus de 600 canyon (ou au debut mettre juste un message d'erreur)
 ajuster la vitesse moyenne en voiture
 
 
-adapté au format mobile
 améliorer les messages d'erreurs
 faire pop up en haut à gauche pour les messages d'erreur
+
+essayer de mettre en place un tri de l'affichage (note, puis temps puis alphabétique)
+mettre u systeme de filtre pour par exemple pas afficher ceux en desous de 2/4 notes
++ ajouter une barre de recherche dans les resultats
+
+faire le excel
+
+faire une petite fleche < vers le bas de chaque case pour mettre les liens des différents point + coordonnee GPS
+
+faire une barre de recherche pour chercher un canyon en particulier et savoir le temps depuis un endroit (les 3 options dispo) (sans donner un temps max) -> juste canyon -> temps
+
 
