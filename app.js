@@ -44,7 +44,7 @@ btn.addEventListener("click", async () => {
     console.log("jai les candidats");
     let data = await callAPIServeur(candidats);
     console.log("data:", data);
-    displayResult(data, candidats, maxTime);
+    displayResult(data, candidats, maxTime, start);
 });
 
 let radiosChoiceLocation = document.querySelectorAll(
@@ -241,7 +241,7 @@ async function callAPIServeur(candidats) {
     }
 }
 
-function displayResult(data, candidats, maxTime) {
+function displayResult(data, candidats, maxTime, start) {
     // On crée un tableau vide pour stocker les phrases
     let phrases = [];
     let vide = true;
@@ -261,6 +261,10 @@ function displayResult(data, candidats, maxTime) {
         let duree = data.durations[i]; // temps en secondes
         let distance = data.distances[i]; // distance en mètres
         let nomNote = candidats[i].name; // nom du candidat
+        let DC_link = candidats[i].DC_link;
+        let latDest = candidats[i].latitude;
+        let longDest = candidats[i].longitude;
+        let linkMaps = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${latDest},${longDest}&travelmode=driving`;
 
         // On arrondit la distance en km et la durée en minutes
         let distanceKm = Math.round(distance / 1000);
@@ -286,8 +290,14 @@ function displayResult(data, candidats, maxTime) {
                                 </span>`;
             }
 
-            let codeListe = `<p class="bold">${nom}</p>
-                            <span class="time right">${dureeMin} min</span>
+            let codeListe = `<a href="${DC_link}" target="_blank" class="full-link"></a>
+                            <p class="bold">${nom}</p>
+                            <span class="time right">
+                                <a href="${linkMaps}" target="_blank" class="time-link">
+                                    <i class="fa-solid fa-map-pin" style="color: #ff0000;" ></i>
+                                    <span>${dureeMin} min<span>
+                                </a>
+                            </span>
                             <div class="divNote">
                                 <span class="note">${note}</span>
                                 ${codeEtoile}
@@ -356,6 +366,7 @@ function getCandidats(maxTime, start) {
                 latitude: canyon.latitude,
                 longitude: canyon.longitude,
                 distance_km: Number(dist.toFixed(2)), //TODO: supprimer la distance ca sert à rien
+                DC_link: canyon.DC_link,
             });
         }
     });
