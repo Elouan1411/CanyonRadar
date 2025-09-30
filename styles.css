@@ -40,7 +40,13 @@ div ul#suggestions {
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     font-family: "Arial";
     font-size: 16px;
-    width: calc(85% + 0.12rem * 2);
+    width: calc(85%);
+    border: 1.2px solid grey;
+    border-radius: 5px;
+}
+
+div ul#suggestions:empty {
+    border: none;
 }
 
 input#search,
@@ -136,7 +142,7 @@ div.divButton button {
     font-size: 1rem;
     margin-bottom: 0.6rem;
 
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* petite ombre */
+    /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); petite ombre */
 }
 
 div button#testBtn {
@@ -188,6 +194,13 @@ div.divResult ul li.canyon:hover {
     transform: translateY(-3px);
 }
 
+button {
+    transition: all 0.3s ease;
+}
+button:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: translateY(-1px);
+}
 .fa-map-pin {
     transform: scale(0);
     opacity: 0;
@@ -266,8 +279,20 @@ li.canyon span.right {
     font-size: 0.9rem;
 }
 
+.nameCotation {
+    display: inline-block;
+}
+
 div.selectLocation label {
     margin-bottom: 0.6rem;
+}
+
+.warning-canyon {
+    font-size: 0.9rem;
+}
+
+.red {
+    color: red;
 }
 
 @media screen and (max-width: 600px) {

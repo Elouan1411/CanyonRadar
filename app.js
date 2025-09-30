@@ -41,7 +41,6 @@ btn.addEventListener("click", async () => {
 
     // Récupérer tout les potentiels canyon candidats
     let candidats = getCandidats(maxTime, start);
-    console.log("jai les candidats");
     let data = await callAPIServeur(candidats);
     console.log("data:", data);
     displayResult(data, candidats, maxTime, start);
@@ -209,9 +208,7 @@ async function getLocation() {
 async function callAPIServeur(candidats) {
     try {
         // Destinations
-        // const end = new Array(5).fill(null).map(() => [9.19, 45.4642]);
-
-        const end = candidats.map((item) => [item.longitude, item.latitude]);
+        const end = candidats.map((item) => [item.long, item.lat]);
         console.log(end);
 
         const endStr = encodeURIComponent(JSON.stringify(end));
@@ -241,7 +238,7 @@ async function callAPIServeur(candidats) {
     }
 }
 
-function displayResult(data, candidats, maxTime, start) {
+function displayResult(data, canyon, maxTime, start) {
     // On crée un tableau vide pour stocker les phrases
     let phrases = [];
     let vide = true;
@@ -260,38 +257,43 @@ function displayResult(data, candidats, maxTime, start) {
     for (let i = 0; i < data.durations.length; i++) {
         let duree = data.durations[i]; // temps en secondes
         let distance = data.distances[i]; // distance en mètres
-        let nomNote = candidats[i].name; // nom du candidat
-        let DC_link = candidats[i].DC_link;
-        let latDest = candidats[i].latitude;
-        let longDest = candidats[i].longitude;
-        let linkMaps = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${latDest},${longDest}&travelmode=driving`;
+        let DC_link = `https://www.descente-canyon.com/canyoning${canyon[i].DC_link}`;
+        let linkMaps = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${canyon[i].lat},${canyon[i].long}&travelmode=driving`;
 
         // On arrondit la distance en km et la durée en minutes
         let distanceKm = Math.round(distance / 1000);
         let dureeMin = Math.round(duree / 60);
 
+        let cotation =
+            canyon[i].cotation != "??"
+                ? `<span class="cotation">${canyon[i].cotation}</span>`
+                : "";
+
         if (dureeMin <= maxTime) {
             vide = false;
-            // On crée la phrase pour ce candidat
-            // let phrase = nom + ": " + distanceKm + " km, " + dureeMin + " min";
-            let parts = nomNote.split(" ");
-            let note = parts.pop(); // dernier élément
-            let nom = parts.join(" "); // tout le reste
-
-            let codeEtoile = "";
-            for (let i = 0; i < Math.trunc(note); i++) {
-                codeEtoile += `<span class="star">
+            let bottom_left;
+            if (canyon[i].note == 0) {
+                bottom_left = `<i class="fa-solid fa-triangle-exclamation" style="color: #ff0000;"></i>
+                           <span class="red warning-canyon">Canyon interdit ou donnée manquante</span>`;
+            } else {
+                bottom_left = `<span class="note">${canyon[i].note}</span>`;
+                for (let j = 0; j < Math.trunc(canyon[i].note); j++) {
+                    bottom_left += `<span class="star">
                                     <i class="fa-solid fa-star" style="color: #ffd43b"></i>
                                 </span>`;
-            }
-            if (note - Math.floor(note) >= 0.5) {
-                codeEtoile += `<span class="star">
+                }
+                if (canyon[i].note - Math.floor(canyon[i].note) >= 0.5) {
+                    bottom_left += `<span class="star">
                                     <i class="fa-solid fa-star-half" style="color: #ffd43b"></i>
                                 </span>`;
+                }
             }
 
             let codeListe = `<a href="${DC_link}" target="_blank" class="full-link"></a>
-                            <p class="bold">${nom}</p>
+                            <div class="nameCotation">
+                                <span class="bold">${canyon[i].name}</span>
+                                ${cotation}
+                            </div>
                             <span class="time right">
                                 <a href="${linkMaps}" target="_blank" class="time-link">
                                     <i class="fa-solid fa-map-pin" style="color: #ff0000;" ></i>
@@ -299,21 +301,20 @@ function displayResult(data, candidats, maxTime, start) {
                                 </a>
                             </span>
                             <div class="divNote">
-                                <span class="note">${note}</span>
-                                ${codeEtoile}
+                                ${bottom_left}
                             </div>
                             <span class="distance right">${distanceKm} km</span>`;
 
-            let canyon = document.createElement("li");
-            canyon.classList.add("canyon");
-            canyon.innerHTML = codeListe;
+            let canyonElt = document.createElement("li");
+            canyonElt.classList.add("canyon");
+            canyonElt.innerHTML = codeListe;
 
-            list_canyon.appendChild(canyon);
+            list_canyon.appendChild(canyonElt);
         }
     }
 
     if (vide) {
-        phrases.push("aucun canyon trouvé pour ce temps de voiture");
+        phrases.push("Aucun canyon trouvé pour ce temps de voiture");
     }
 
     // On transforme le tableau de phrases en un seul texte avec des sauts de ligne
@@ -358,19 +359,13 @@ function getCandidats(maxTime, start) {
     let candidats = [];
     let maxDistance = AVERAGE_SPEED * (maxTime / 60);
     dataDB.forEach((canyon) => {
-        let endRad = [toRadians(canyon.longitude), toRadians(canyon.latitude)];
+        let endRad = [toRadians(canyon.long), toRadians(canyon.lat)];
         let dist = haversine(startRad, endRad);
-        if (dist <= maxDistance && canyon.styleUrl == "#msn_info") {
-            candidats.push({
-                name: canyon.name,
-                latitude: canyon.latitude,
-                longitude: canyon.longitude,
-                distance_km: Number(dist.toFixed(2)), //TODO: supprimer la distance ca sert à rien
-                DC_link: canyon.DC_link,
-            });
+        if (dist <= maxDistance) {
+            candidats.push({ ...canyon });
         }
     });
-    //TODO: Comprendre et gérer les cas avec distance de 0km
+    console.log(candidats);
     return candidats;
 }
 
