@@ -53,7 +53,7 @@ input#search,
 select#maxTime,
 input#coordonnee {
     border-radius: 5px;
-    font-size: 1rem;
+    font-size: 0.8rem;
     background-color: white;
     width: 85%;
     border-color: grey;
@@ -180,7 +180,7 @@ div.divResult ul li.canyon {
     font-size: 1rem;
     background-color: white;
     display: grid;
-    align-items: center;
+    /* align-items: center; */
     grid-template-columns: repeat(2, 1fr);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* petite ombre */
     gap: 10px;
@@ -298,6 +298,26 @@ div.selectLocation label {
 @media screen and (max-width: 600px) {
     div.divSearch {
         flex-direction: column;
+    }
+
+    div.selectLocation {
+        width: 100%;
+    }
+
+    input#search,
+    input#coordonnee,
+    div ul#suggestions,
+    select#maxTime {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    select#maxTime {
+        margin-bottom: 2rem;
+    }
+
+    h1 {
+        padding: 1rem;
     }
 
     .canyon-list {
