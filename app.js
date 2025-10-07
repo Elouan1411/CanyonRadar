@@ -6,6 +6,7 @@ let suggestions, searchInput;
 let timeout;
 let start; //TODO: faire pour ne pas que ca soit global²
 const AVERAGE_SPEED = 80;
+let canyonList = [];
 
 // Clique du bouton de recherche
 btn.addEventListener("click", async () => {
@@ -271,19 +272,20 @@ function displayResult(data, canyon, maxTime, start) {
 
         if (dureeMin <= maxTime) {
             vide = false;
+            canyonList.push(canyon[i]);
             let bottom_left;
             if (canyon[i].note == 0) {
                 bottom_left = `<i class="fa-solid fa-triangle-exclamation" style="color: #ff0000;"></i>
                            <span class="red warning-canyon">Canyon interdit ou donnée manquante</span>`;
             } else {
-                bottom_left = `<span class="note">${canyon[i].note}</span>`;
+                bottom_left = `<span class="note" title="${canyon[i].note}/4">${canyon[i].note}</span>`;
                 for (let j = 0; j < Math.trunc(canyon[i].note); j++) {
-                    bottom_left += `<span class="star">
+                    bottom_left += `<span class="star" title="${canyon[i].note}/4">
                                     <i class="fa-solid fa-star" style="color: #ffd43b"></i>
                                 </span>`;
                 }
                 if (canyon[i].note - Math.floor(canyon[i].note) >= 0.5) {
-                    bottom_left += `<span class="star">
+                    bottom_left += `<span class="star" title="${canyon[i].note}/4">
                                     <i class="fa-solid fa-star-half" style="color: #ffd43b"></i>
                                 </span>`;
                 }
@@ -296,18 +298,27 @@ function displayResult(data, canyon, maxTime, start) {
                             </div>
                             <span class="time right">
                                 <a href="${linkMaps}" target="_blank" class="time-link">
-                                    <i class="fa-solid fa-map-pin" style="color: #ff0000;" ></i>
-                                    <span>${dureeMin} min<span>
+                                    <i class="fa-solid fa-map-pin" title="Voir itinéraire" style="color: #ff0000;" ></i>
+                                    <span title="Voir itinéraire">${dureeMin} min<span>
                                 </a>
                             </span>
                             <div class="divNote">
                                 ${bottom_left}
                             </div>
-                            <span class="distance right">${distanceKm} km</span>`;
+                            <span class="distance right">${distanceKm} km</span>
+                            <i class="fas fa-angle-double-down arrow-down"></i>`;
+
+            let codeCanyonExtra = `<div class="canyon-extra">
+                                       <pre style="font-size: 0.8rem">${JSON.stringify(
+                                           canyon[i],
+                                           null,
+                                           2
+                                       )}</pre>
+                                    </div>`;
 
             let canyonElt = document.createElement("li");
             canyonElt.classList.add("canyon");
-            canyonElt.innerHTML = codeListe;
+            canyonElt.innerHTML = codeListe + codeCanyonExtra;
 
             list_canyon.appendChild(canyonElt);
         }
@@ -322,6 +333,7 @@ function displayResult(data, canyon, maxTime, start) {
 
     // On affiche le texte dans l'élément result
     result.textContent = infos;
+    resultCanyon = listenerCanyonExtra();
 }
 
 function getMaxTime() {
@@ -389,10 +401,70 @@ function deleteOldResult() {
     }
 }
 
-// document.querySelector(".arrow-down").addEventListener("click", () => {
-//     //TODO: ecrire les autres trucs
-//     //TODO: et si on appuie sur echap ca referme l'agrandissement
-// });
+function listenerCanyonExtra() {
+    const arrow = document.querySelectorAll(".arrow-down");
+    arrow.forEach((button) => {
+        button.addEventListener("click", (e) => {
+            console.log("click !");
+            const canyon = e.target.closest("li.canyon");
+
+            // Ferme les autres si besoin
+            document.querySelectorAll("li.canyon.expanded").forEach((el) => {
+                if (el !== canyon) el.classList.remove("expanded");
+            });
+
+            // Bascule l’état ouvert/fermé
+            canyon.classList.toggle("expanded");
+
+            // Change l'icône
+            if (button.classList.contains("fa-angle-double-down")) {
+                button.classList.remove("fa-angle-double-down");
+                button.classList.add("fa-angle-double-up");
+            } else {
+                button.classList.remove("fa-angle-double-up");
+                button.classList.add("fa-angle-double-down");
+            }
+        });
+    });
+}
 
 // Appel au démarrage
 loadData();
+
+function jsonToCSV(jsonArray) {
+    if (!jsonArray.length) return "";
+
+    const headers = Object.keys(jsonArray[0]); // En-têtes CSV
+    const csvRows = [headers.join(",")]; // première ligne : en-têtes
+
+    jsonArray.forEach((obj) => {
+        const values = headers.map((header) => {
+            let val = obj[header];
+            if (typeof val === "object") val = JSON.stringify(val); // traiter objets imbriqués
+            return `"${String(val).replace(/"/g, '""')}"`; // échappe les guillemets
+        });
+        csvRows.push(values.join(","));
+    });
+
+    return csvRows.join("\n");
+}
+
+function downloadCSVFromJSON(jsonArray, filename = "canyon.csv") {
+    const csv = jsonToCSV(jsonArray);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector("#export").addEventListener("click", () => {
+        console.log("canyyyyon", canyonList);
+        downloadCSVFromJSON(canyonList);
+    });
+});

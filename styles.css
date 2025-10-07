@@ -133,12 +133,15 @@ div.divButton {
     width: 100%;
 }
 
-div.divButton button {
-    width: 100%;
-    display: block;
+button {
     border-radius: 10px;
     border: solid 0.2px rgb(144, 144, 144);
     padding: 0.4rem;
+}
+
+div.divButton button {
+    display: block;
+    width: 100%;
     font-size: 1rem;
     margin-bottom: 0.6rem;
 
@@ -151,7 +154,8 @@ div button#testBtn {
     font-weight: bold;
 }
 
-div button#export {
+div button#export,
+div.canyon-extra button {
     background-color: white;
     color: black;
 }
@@ -308,6 +312,7 @@ div.selectLocation label {
     z-index: 10000;
 
     animation: bounceArrow 1s infinite ease-in-out;
+    /* animation: transform 0.3s ease; Pour la rotation */
 }
 
 li.canyon:hover .arrow-down {
@@ -362,4 +367,37 @@ li.canyon:hover .arrow-down:hover {
         display: flex;
         flex-direction: column;
     }
+}
+
+li.canyon.expanded {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    background-color: #f8f8f8;
+}
+
+.canyon-extra {
+    display: none;
+    grid-column: 1 / -1;
+}
+
+li.canyon.expanded .canyon-extra {
+    display: block;
+}
+
+div.divNote {
+    z-index: 10;
+}
+
+div.canyon-extra button {
+    z-index: 100;
+    position: relative;
+}
+
+pre {
+    /*TODO: temp juste pour que ca soit responsive */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
+    max-width: 100%;
+    box-sizing: border-box;
 }
