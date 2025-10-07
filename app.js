@@ -389,5 +389,10 @@ function deleteOldResult() {
     }
 }
 
+document.querySelector(".arrow-down").addEventListener("click", () => {
+    //TODO: ecrire les autres trucs
+    //TODO: et si on appuie sur echap ca referme l'agrandissement
+});
+
 // Appel au démarrage
 loadData();

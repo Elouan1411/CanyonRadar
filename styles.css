@@ -294,6 +294,44 @@ div.selectLocation label {
 .red {
     color: red;
 }
+.arrow-down {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    font-size: 1rem;
+    transform: translateX(-50%) translateY(-130%) scale(0);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease, color 0.3s ease;
+    color: #999999;
+    display: inline-block;
+    padding: 5px;
+    z-index: 10000;
+
+    animation: bounceArrow 1s infinite ease-in-out;
+}
+
+li.canyon:hover .arrow-down {
+    transform: translateX(-50%) translateY(-130%) scale(1);
+    opacity: 1;
+}
+
+li.canyon:hover .arrow-down:hover {
+    color: #414141;
+    animation-play-state: paused; /* pause animation */
+}
+
+/* Animation séparée uniquement sur Y */
+@keyframes bounceArrow {
+    0% {
+        transform: translateX(-50%) translateY(-133%) scale(1);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-117%) scale(1);
+    }
+    100% {
+        transform: translateX(-50%) translateY(-133%) scale(1);
+    }
+}
 
 @media screen and (max-width: 600px) {
     div.divSearch {

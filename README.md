@@ -1,5 +1,7 @@
 # 🌄 Canyon Radar 🧗‍♂️
 
+![In Development](https://img.shields.io/badge/status-in--development-orange)
+
 Canyon Radar is a web app to help you plan **canyoning trips** based on a chosen location. You can use your **current location** 📍 or pick a point on a map 🗺️. The app finds all canyons reachable within a specified **driving time** ⏱️ and lets you **export the results** 📊 to CSV or Excel for planning.
 
 ## 🚀 Live Demo
