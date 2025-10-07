@@ -367,6 +367,11 @@ li.canyon:hover .arrow-down:hover {
         display: flex;
         flex-direction: column;
     }
+
+    .arrow-down {
+        opacity: 1;
+        animation-play-state: paused;
+    }
 }
 
 li.canyon.expanded {
