@@ -6,10 +6,118 @@
 const AVERAGE_SPEED = 75; // km/h (slightly more realistic for mountain roads)
 const TOAST_DURATION = 4000;
 
+// ── i18n ──
+const i18n = {
+    en: {
+        selectLocation: 'Select location',
+        currentLocation: 'Current Location',
+        searchCity: 'Search City',
+        gpsCoordinates: 'GPS Coordinates',
+        maxDrivingTime: 'Max driving time',
+        findTrip: 'Find my next trip',
+        exportCSV: 'Export to CSV',
+        searchResults: 'Search results...',
+        minRating: 'Min rating:',
+        sortBy: 'Sort by:',
+        ratingHighLow: 'Rating (high to low)',
+        ratingLowHigh: 'Rating (low to high)',
+        timeShortLong: 'Driving time (short to long)',
+        timeLongShort: 'Driving time (long to short)',
+        nameAZ: 'Name (A-Z)',
+        nameZA: 'Name (Z-A)',
+        any: 'Any',
+        results: (n) => `${n} result${n > 1 ? 's' : ''}`,
+        noResults: 'No results',
+        noCanyonsMatch: 'No canyons match your filters.',
+        calculating: 'Calculating driving times...',
+        selectCityFromSuggestions: 'Please select a city from the suggestions',
+        invalidCoords: 'Invalid coordinates format. Use: lat, lng (e.g. 46.728250, 8.183964)',
+        geoUnsupported: 'Geolocation is not supported by this browser.',
+        geoDenied: 'Location permission denied.',
+        geoUnavailable: 'Position unavailable.',
+        geoTimeout: 'Geolocation request timed out.',
+        geoUnknown: 'Unknown geolocation error.',
+        noCandidates: 'No canyons found within this driving radius',
+        tooManyCandidates: (n) => `Too many candidates (${n}). Narrow your search radius.`,
+        noRoutes: 'No routes found',
+        routeError: 'An error occurred while calculating routes.',
+        noCanyonsInTime: 'No canyons reachable within the selected time.',
+        foundCanyons: (n) => `${n} canyon(s) found!`,
+        databaseError: 'Failed to load canyon database',
+        forbiddenMissing: 'Forbidden / missing data',
+        rating: 'Rating out of 4',
+        openRoute: 'Open route in Google Maps',
+        openCanyon: 'on descente-canyon.com',
+        showDetails: 'Show details',
+        points: 'Points',
+        loadingData: 'Loading canyon data...',
+        exportEmpty: 'No results to export',
+        exportSuccess: 'CSV exported successfully',
+        searchPlaceholder: 'Enter a city',
+        coordsPlaceholder: '46.728250, 8.183964',
+    },
+    fr: {
+        selectLocation: 'Choisir la localisation',
+        currentLocation: 'Localisation actuelle',
+        searchCity: 'Rechercher une ville',
+        gpsCoordinates: 'Coordonnées GPS',
+        maxDrivingTime: 'Temps de route max',
+        findTrip: 'Trouver ma prochaine sortie',
+        exportCSV: 'Exporter en CSV',
+        searchResults: 'Rechercher dans les résultats...',
+        minRating: 'Note min :',
+        sortBy: 'Trier par :',
+        ratingHighLow: 'Note (décroissante)',
+        ratingLowHigh: 'Note (croissante)',
+        timeShortLong: 'Temps (court → long)',
+        timeLongShort: 'Temps (long → court)',
+        nameAZ: 'Nom (A-Z)',
+        nameZA: 'Nom (Z-A)',
+        any: 'Toutes',
+        results: (n) => `${n} résultat${n > 1 ? 's' : ''}`,
+        noResults: 'Aucun résultat',
+        noCanyonsMatch: 'Aucun canyon ne correspond à vos filtres.',
+        calculating: 'Calcul des temps de route...',
+        selectCityFromSuggestions: 'Veuillez sélectionner une ville dans les suggestions',
+        invalidCoords: "Format de coordonnées invalide. Utilisez : lat, lng (ex: 46.728250, 8.183964)",
+        geoUnsupported: "La géolocalisation n'est pas supportée par ce navigateur.",
+        geoDenied: 'Permission de localisation refusée.',
+        geoUnavailable: 'Position indisponible.',
+        geoTimeout: 'La requête de géolocalisation a expiré.',
+        geoUnknown: 'Erreur de géolocalisation inconnue.',
+        noCandidates: 'Aucun canyon trouvé dans ce rayon de conduite',
+        tooManyCandidates: (n) => `Trop de candidats (${n}). Réduisez le rayon de recherche.`,
+        noRoutes: 'Aucun itinéraire trouvé',
+        routeError: 'Une erreur est survenue lors du calcul des itinéraires.',
+        noCanyonsInTime: 'Aucun canyon accessible dans le temps sélectionné.',
+        foundCanyons: (n) => `${n} canyon(s) trouvé(s) !`,
+        databaseError: 'Échec du chargement de la base de données',
+        forbiddenMissing: 'Interdit / données manquantes',
+        rating: 'Note sur 4',
+        openRoute: "Ouvrir l'itinéraire dans Google Maps",
+        openCanyon: 'sur descente-canyon.com',
+        showDetails: 'Afficher les détails',
+        points: 'Points',
+        loadingData: 'Chargement des données...',
+        exportEmpty: 'Aucun résultat à exporter',
+        exportSuccess: 'CSV exporté avec succès',
+        searchPlaceholder: 'Entrez une ville',
+        coordsPlaceholder: '46.728250, 8.183964',
+    },
+};
+
+let lang = 'en';
+const browserLang = navigator.language || navigator.userLanguage || '';
+if (browserLang.toLowerCase().startsWith('fr')) lang = 'fr';
+const t = (k, ...args) => {
+    const str = i18n[lang]?.[k] ?? i18n.en[k];
+    return typeof str === 'function' ? str(...args) : str;
+};
+
 // ── State ──
 const state = {
     start: null,
-    rawResults: [],       // { canyon, duration, distanceKm, durationMin, linkMaps, DC_link }
+    rawResults: [],
     filteredResults: [],
     dataDB: [],
     isLoading: false,
@@ -29,10 +137,93 @@ const els = {
     resultsCount: document.getElementById('results-count'),
     radios: document.querySelectorAll('input[name="choiceLocation"]'),
     toastContainer: document.getElementById('toast-container'),
+    selectLocationH2: document.querySelector('.selectLocation h2'),
+    maxTimeH2: document.querySelector('.divMaxTime h2'),
 };
 
 // ── Debounce util ──
 let searchTimeout;
+
+/* ================================================================
+   0. Translate static UI
+   ================================================================ */
+
+function applyTranslations() {
+    document.documentElement.lang = lang === 'fr' ? 'fr' : 'en';
+
+    // Header subtitle
+    document.querySelector('.header-subtitle').textContent =
+        lang === 'fr' ? 'Trouvez des canyons accessibles selon votre temps de route' : 'Find canyoning spots reachable within your driving time';
+
+    // Search panel
+    const locationIcon = els.selectLocationH2.querySelector('i');
+    els.selectLocationH2.innerHTML = '';
+    els.selectLocationH2.appendChild(locationIcon);
+    els.selectLocationH2.appendChild(document.createTextNode(' ' + t('selectLocation')));
+
+    const maxTimeIcon = els.maxTimeH2.querySelector('i');
+    els.maxTimeH2.innerHTML = '';
+    els.maxTimeH2.appendChild(maxTimeIcon);
+    els.maxTimeH2.appendChild(document.createTextNode(' ' + t('maxDrivingTime')));
+
+    document.querySelectorAll('.radio-label')[0].querySelector('.radio-text').textContent = t('currentLocation');
+    document.querySelectorAll('.radio-label')[1].querySelector('.radio-text').textContent = t('searchCity');
+    document.querySelectorAll('.radio-label')[2].querySelector('.radio-text').textContent = t('gpsCoordinates');
+
+    els.btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> ${t('findTrip')}`;
+    els.exportBtn.innerHTML = `<i class="fa-solid fa-file-csv"></i> ${t('exportCSV')}`;
+
+    // Result controls
+    els.resultSearch.placeholder = t('searchResults');
+    document.querySelector('.filter-group label').textContent = t('minRating');
+    document.querySelector('.sort-group label').textContent = t('sortBy');
+
+    // Options
+    const minNoteOptions = {
+        0: t('any'),
+        1: '1+', 2: '2+', 3: '3+', '3.5': '3.5+'
+    };
+    Array.from(els.minNoteFilter.options).forEach((opt) => {
+        opt.textContent = minNoteOptions[opt.value] ?? opt.value;
+    });
+
+    const sortOptions = {
+        'note-desc': t('ratingHighLow'),
+        'note-asc': t('ratingLowHigh'),
+        'time-asc': t('timeShortLong'),
+        'time-desc': t('timeLongShort'),
+        'name-asc': t('nameAZ'),
+        'name-desc': t('nameZA'),
+    };
+    Array.from(els.sortBy.options).forEach((opt) => {
+        opt.textContent = sortOptions[opt.value] ?? opt.value;
+    });
+
+    // Loading
+    document.querySelector('.loading p').textContent = t('calculating');
+
+    // Footer
+    document.querySelector('.footer-inner span:first-child').textContent = lang === 'fr'
+        ? 'Créé avec par Elouan'
+        : 'Made with by Elouan';
+    const heart = document.createElement('i');
+    heart.className = 'fa-solid fa-heart';
+    document.querySelector('.footer-inner span:first-child').appendChild(heart);
+    if (lang === 'fr') {
+        document.querySelector('.footer-inner span:first-child').childNodes[0].textContent = 'Créé avec ';
+        document.querySelector('.footer-inner span:first-child').appendChild(document.createTextNode(' par Elouan'));
+    } else {
+        document.querySelector('.footer-inner span:first-child').childNodes[0].textContent = 'Made with ';
+        document.querySelector('.footer-inner span:first-child').appendChild(document.createTextNode(' by Elouan'));
+    }
+    // Actually need to rebuild cleanly, but this is fragile. Let's simplify.
+
+    // Better approach: just rebuild footer first span
+    const firstFooter = document.querySelector('.footer-inner span:first-child');
+    firstFooter.innerHTML = lang === 'fr'
+        ? 'Créé avec <i class="fa-solid fa-heart"></i> par Elouan'
+        : 'Made with <i class="fa-solid fa-heart"></i> by Elouan';
+}
 
 /* ================================================================
    1. Initialization
@@ -44,12 +235,12 @@ async function loadData() {
         state.dataDB = await res.json();
     } catch (err) {
         console.error('Error loading dataDB:', err);
-        showToast('Failed to load canyon database', 'error');
+        showToast(t('databaseError'), 'error');
     }
 }
 
-// Appel au démarrage
 loadData();
+window.addEventListener('DOMContentLoaded', applyTranslations);
 
 /* ================================================================
    2. Event Listeners
@@ -58,12 +249,10 @@ loadData();
 els.btn.addEventListener('click', onSearch);
 els.exportBtn.addEventListener('click', onExport);
 
-// Location radio buttons
 els.radios.forEach((radio, index) => {
     radio.addEventListener('change', () => onLocationChange(index));
 });
 
-// Filter / Sort listeners
 els.resultSearch.addEventListener('input', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(applyFiltersSort, 200);
@@ -79,7 +268,6 @@ let searchInput, suggestions;
 let locationTimeout;
 
 function onLocationChange(index) {
-    // Clean up previous dynamic inputs
     const oldCity = document.getElementById('divSearchCity');
     const oldCoord = document.getElementById('divCoordonnee');
     if (oldCity) oldCity.remove();
@@ -94,7 +282,7 @@ function createCitySearchInput() {
     div.id = 'divSearchCity';
     div.className = 'dynamic-input';
     div.innerHTML = `
-        <input type="text" id="search" placeholder="Entrez une ville" autocomplete="off"/>
+        <input type="text" id="search" placeholder="${t('searchPlaceholder')}" autocomplete="off"/>
         <ul id="suggestions"></ul>
     `;
     document.querySelectorAll('.selectLocation label')[1].insertAdjacentElement('afterend', div);
@@ -112,7 +300,7 @@ function createCoordInput() {
     const div = document.createElement('div');
     div.id = 'divCoordonnee';
     div.className = 'dynamic-input';
-    div.innerHTML = `<input type="text" id="coordonnee" placeholder="46.728250, 8.183964"/>`;
+    div.innerHTML = `<input type="text" id="coordonnee" placeholder="${t('coordsPlaceholder')}"/>`;
     document.querySelectorAll('.selectLocation label')[2].insertAdjacentElement('afterend', div);
 }
 
@@ -149,11 +337,10 @@ async function onSearch() {
 
     const choice = document.querySelector('input[name="choiceLocation"]:checked')?.value;
 
-    // Resolve start coordinates
     try {
         if (choice === 'selectLocation') {
             if (!state.start) {
-                showToast('Please select a city from the suggestions', 'warning');
+                showToast(t('selectCityFromSuggestions'), 'warning');
                 return;
             }
         } else if (choice === 'coordonnee') {
@@ -168,20 +355,19 @@ async function onSearch() {
     }
 
     const maxTime = Number(document.getElementById('maxTime').value);
-
     showLoading(true);
 
     const candidates = getCandidates(maxTime, state.start);
     console.log(`Candidates pre-filtered: ${candidates.length}`);
 
     if (candidates.length === 0) {
-        showToast('No canyons found within this driving radius', 'info');
+        showToast(t('noCandidates'), 'info');
         showLoading(false);
         return;
     }
 
     if (candidates.length > 600) {
-        showToast(`Too many candidates (${candidates.length}). Narrow your search radius.`, 'warning');
+        showToast(t('tooManyCandidates', candidates.length), 'warning');
         showLoading(false);
         return;
     }
@@ -193,13 +379,13 @@ async function onSearch() {
         applyFiltersSort();
         els.resultsControls.classList.remove('hidden');
         if (state.filteredResults.length === 0) {
-            showToast('No canyons reachable within the selected time.', 'info');
+            showToast(t('noCanyonsInTime'), 'info');
         } else {
-            showToast(`${state.filteredResults.length} canyon(s) found!`, 'success');
+            showToast(t('foundCanyons', state.filteredResults.length), 'success');
         }
     } catch (err) {
         console.error(err);
-        showToast('An error occurred while calculating routes.', 'error');
+        showToast(t('routeError'), 'error');
     } finally {
         showLoading(false);
     }
@@ -209,27 +395,27 @@ function parseManualCoords() {
     const val = document.getElementById('coordonnee')?.value || '';
     const match = val.match(/(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/);
     if (!match) {
-        showToast('Invalid coordinates format. Use: lat, lng (e.g. 46.728250, 8.183964)', 'warning');
+        showToast(t('invalidCoords'), 'warning');
         return null;
     }
-    return [parseFloat(match[2]), parseFloat(match[1])]; // [lon, lat]
+    return [parseFloat(match[2]), parseFloat(match[1])];
 }
 
 function resolveCurrentLocation() {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
-            reject('Geolocation is not supported by this browser.');
+            reject(t('geoUnsupported'));
             return;
         }
         navigator.geolocation.getCurrentPosition(
             (pos) => resolve([pos.coords.longitude, pos.coords.latitude]),
             (err) => {
                 const msgs = {
-                    [err.PERMISSION_DENIED]: 'Location permission denied.',
-                    [err.POSITION_UNAVAILABLE]: 'Position unavailable.',
-                    [err.TIMEOUT]: 'Geolocation request timed out.'
+                    [err.PERMISSION_DENIED]: t('geoDenied'),
+                    [err.POSITION_UNAVAILABLE]: t('geoUnavailable'),
+                    [err.TIMEOUT]: t('geoTimeout')
                 };
-                reject(msgs[err.code] || 'Unknown geolocation error.');
+                reject(msgs[err.code] || t('geoUnknown'));
             }
         );
     });
@@ -243,7 +429,7 @@ function callAPIServer(candidates) {
         .then((res) => res.json())
         .then((data) => {
             if (data.error) throw new Error(data.error);
-            if (!data.durations || !data.durations.length) throw new Error('No routes found');
+            if (!data.durations || !data.durations.length) throw new Error(t('noRoutes'));
             return data;
         });
 }
@@ -260,7 +446,6 @@ function buildRawResults(apiData, candidates, maxTime) {
         const distanceM = apiData.distances[i];
         const c = candidates[i];
 
-        // Skip unroutable locations (ORS returns null)
         if (durationSec === null || distanceM === null) continue;
 
         const durationMin = Math.round(durationSec / 60);
@@ -289,17 +474,14 @@ function applyFiltersSort() {
 
     let data = [...state.rawResults];
 
-    // Filter by search text
     if (searchVal) {
         data = data.filter((r) => r.canyon.name.toLowerCase().includes(searchVal));
     }
 
-    // Filter by min note
     if (minNote > 0) {
         data = data.filter((r) => r.canyon.note >= minNote);
     }
 
-    // Sort
     const [key, dir] = sortMode.split('-');
     data.sort((a, b) => {
         let va, vb;
@@ -325,10 +507,10 @@ function renderResults() {
     els.resultPre.textContent = '';
 
     const count = state.filteredResults.length;
-    els.resultsCount.textContent = count > 0 ? `${count} result${count > 1 ? 's' : ''}` : 'No results';
+    els.resultsCount.textContent = count > 0 ? t('results', count) : t('noResults');
 
     if (count === 0) {
-        els.resultPre.textContent = 'No canyons match your filters.';
+        els.resultPre.textContent = t('noCanyonsMatch');
         return;
     }
 
@@ -337,10 +519,9 @@ function renderResults() {
     state.filteredResults.forEach((item) => {
         const c = item.canyon;
 
-        // Stars
         let ratingHTML = '';
         if (c.note === 0) {
-            ratingHTML = `<span class="canyon-badge canyon-badge-danger"><i class="fa-solid fa-ban"></i> Forbidden / missing data</span>`;
+            ratingHTML = `<span class="canyon-badge canyon-badge-danger"><i class="fa-solid fa-ban"></i> ${t('forbiddenMissing')}</span>`;
         } else {
             ratingHTML = `<span class="rating-number">${c.note}</span>`;
             const fullStars = Math.floor(c.note);
@@ -349,38 +530,35 @@ function renderResults() {
             if (halfStar) ratingHTML += `<i class="fa-solid fa-star-half-stroke star-icon"></i>`;
         }
 
-        // Cotation badge
         const cotationBadge = c.cotation && c.cotation !== '??'
             ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>`
             : '';
 
-        // Extra details (expandable)
         const extraDetails = buildExtraDetails(c);
 
         const li = document.createElement('li');
         li.className = 'canyon';
         li.innerHTML = `
-            <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="Open ${c.name} on descente-canyon.com"></a>
+            <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="${c.name} ${t('openCanyon')}"></a>
             <div class="canyon-header">
                 <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
-                <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="Open route in Google Maps">
+                <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="${t('openRoute')}">
                     <i class="fa-solid fa-map-location-dot"></i>
                     <span class="route-time">${item.durationMin} min</span>
                     <span class="route-dist">${item.distanceKm} km</span>
                 </a>
             </div>
             <div class="canyon-meta">
-                <div class="canyon-rating" title="Rating out of 4">
+                <div class="canyon-rating" title="${t('rating')}">
                     ${ratingHTML}
                 </div>
-                <button class="canyon-expand-btn" aria-label="Show details">
+                <button class="canyon-expand-btn" aria-label="${t('showDetails')}">
                     <i class="fa-solid fa-chevron-down"></i>
                 </button>
             </div>
             <div class="canyon-extra">${extraDetails}</div>
         `;
 
-        // Expand logic
         const expandBtn = li.querySelector('.canyon-expand-btn');
         expandBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -399,15 +577,15 @@ function renderResults() {
 
 function buildExtraDetails(c) {
     const fields = [
-        { label: 'Altitude départ', val: c.alt_dep },
-        { label: 'Dénivelé', val: c.deniv },
-        { label: 'Longueur', val: c.longueur },
-        { label: 'Hauteur max', val: c.haut_max },
-        { label: 'Corde', val: c.corde },
-        { label: 'Approche', val: c.tps_approche },
-        { label: 'Descente', val: c.tps_desc },
-        { label: 'Retour', val: c.tps_retour },
-        { label: 'Navette', val: c.navette },
+        { label: lang === 'fr' ? 'Altitude départ' : 'Altitude departure', val: c.alt_dep },
+        { label: lang === 'fr' ? 'Dénivelé' : 'Elevation change', val: c.deniv },
+        { label: lang === 'fr' ? 'Longueur' : 'Length', val: c.longueur },
+        { label: lang === 'fr' ? 'Hauteur max' : 'Max height', val: c.haut_max },
+        { label: lang === 'fr' ? 'Corde' : 'Rope', val: c.corde },
+        { label: lang === 'fr' ? 'Approche' : 'Approach', val: c.tps_approche },
+        { label: lang === 'fr' ? 'Descente' : 'Descent', val: c.tps_desc },
+        { label: lang === 'fr' ? 'Retour' : 'Return', val: c.tps_retour },
+        { label: lang === 'fr' ? 'Navette' : 'Shuttle', val: c.navette },
     ];
 
     let rows = fields
@@ -415,10 +593,11 @@ function buildExtraDetails(c) {
         .map((f) => `<div class="detail-row"><span class="detail-label">${f.label}</span><span class="detail-value">${f.val}</span></div>`)
         .join('');
 
-    // Parking links
     if (c.points) {
-        rows += `<div class="detail-section-title"><i class="fa-solid fa-map-pin"></i> Points</div>`;
-        const ptLabels = { depart: 'Départ', arrivee: 'Arrivée', parking_amont: 'Parking amont', parking_aval: 'Parking aval' };
+        rows += `<div class="detail-section-title"><i class="fa-solid fa-map-pin"></i> ${t('points')}</div>`;
+        const ptLabels = lang === 'fr'
+            ? { depart: 'Départ', arrivee: 'Arrivée', parking_amont: 'Parking amont', parking_aval: 'Parking aval' }
+            : { depart: 'Start', arrivee: 'End', parking_amont: 'Upstream parking', parking_aval: 'Downstream parking' };
         Object.entries(c.points).forEach(([key, pt]) => {
             const label = ptLabels[key] || key;
             const mapsLink = `https://www.google.com/maps?q=${pt.lat},${pt.long}`;
@@ -485,7 +664,6 @@ function showToast(message, type = 'info') {
     toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
     els.toastContainer.appendChild(toast);
 
-    // Trigger reflow
     toast.offsetHeight;
     toast.classList.add('show');
 
@@ -501,7 +679,7 @@ function showToast(message, type = 'info') {
 
 function onExport() {
     if (state.filteredResults.length === 0) {
-        showToast('No results to export', 'warning');
+        showToast(t('exportEmpty'), 'warning');
         return;
     }
 
@@ -527,7 +705,7 @@ function onExport() {
     }));
 
     downloadCSV(rows, 'canyon_radar_export.csv');
-    showToast('CSV exported successfully', 'success');
+    showToast(t('exportSuccess'), 'success');
 }
 
 function downloadCSV(data, filename) {
