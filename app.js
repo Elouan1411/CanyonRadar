@@ -589,7 +589,6 @@ function renderResults() {
         const li = document.createElement('li');
         li.className = 'canyon';
         li.innerHTML = `
-            <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="${c.name} ${t('openCanyon')}"></a>
             <div class="canyon-header">
                 <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
                 <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="${t('openRoute')}">
@@ -600,19 +599,39 @@ function renderResults() {
             </div>
             <div class="canyon-meta">
                 <div class="canyon-rating" title="${t('rating')}">${ratingHTML}</div>
-                <button class="canyon-expand-btn" aria-label="${t('showDetails')}"><i class="fa-solid fa-chevron-down"></i></button>
+                <button class="canyon-expand-btn" aria-label="${t('showDetails')}">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
             </div>
-            <div class="canyon-extra">${extraDetails}</div>
+            <div class="canyon-extra">
+                ${extraDetails}
+                <div class="detail-dc-link">
+                    <a href="${item.DC_link}" target="_blank">
+                        <i class="fa-solid fa-external-link-alt"></i> ${t('openCanyon')}
+                    </a>
+                </div>
+            </div>
         `;
 
-        const expandBtn = li.querySelector('.canyon-expand-btn');
-        expandBtn.addEventListener('click', (e) => {
-            e.preventDefault(); e.stopPropagation();
+        const toggleExpand = () => {
             const isExpanded = li.classList.toggle('expanded');
-            const icon = expandBtn.querySelector('i');
+            const icon = li.querySelector('.canyon-expand-btn i');
             icon.classList.toggle('fa-chevron-down', !isExpanded);
             icon.classList.toggle('fa-chevron-up', isExpanded);
+        };
+
+        // Click on card toggles expand, except on route link
+        li.addEventListener('click', (e) => {
+            if (e.target.closest('.canyon-route-link')) return;
+            toggleExpand();
         });
+
+        // Expand button also toggles
+        li.querySelector('.canyon-expand-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleExpand();
+        });
+
         fragment.appendChild(li);
     });
     els.canyonList.appendChild(fragment);
@@ -641,7 +660,6 @@ function renderSingleResult(item) {
     const li = document.createElement('li');
     li.className = 'canyon canyon-single';
     li.innerHTML = `
-        <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="${c.name} ${t('openCanyon')}"></a>
         <div class="canyon-single-header">
             <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
             <div class="canyon-single-rating" title="${t('rating')}">${ratingHTML}</div>
@@ -653,7 +671,14 @@ function renderSingleResult(item) {
                 <span class="route-dist">${item.distanceKm} km</span>
             </a>
         </div>
-        <div class="canyon-extra">${extraDetails}</div>
+        <div class="canyon-extra" style="display: block;">
+            ${extraDetails}
+            <div class="detail-dc-link">
+                <a href="${item.DC_link}" target="_blank">
+                    <i class="fa-solid fa-external-link-alt"></i> ${t('openCanyon')}
+                </a>
+            </div>
+        </div>
     `;
     els.canyonList.appendChild(li);
 }
