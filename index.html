@@ -101,25 +101,29 @@
 
                         <div class="filter-group">
                             <label for="minNoteFilter">Min rating:</label>
-                            <select id="minNoteFilter">
-                                <option value="0">Any</option>
-                                <option value="1">1+</option>
-                                <option value="2">2+</option>
-                                <option value="3">3+</option>
-                                <option value="3.5">3.5+</option>
-                            </select>
+                            <div class="select-wrapper small-select">
+                                <select id="minNoteFilter">
+                                    <option value="0">Any</option>
+                                    <option value="1">1+</option>
+                                    <option value="2">2+</option>
+                                    <option value="3">3+</option>
+                                    <option value="3.5">3.5+</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="sort-group">
                             <label for="sortBy">Sort by:</label>
-                            <select id="sortBy">
-                                <option value="note-desc">Rating (high to low)</option>
-                                <option value="note-asc">Rating (low to high)</option>
-                                <option value="time-asc">Driving time (short to long)</option>
-                                <option value="time-desc">Driving time (long to short)</option>
-                                <option value="name-asc">Name (A-Z)</option>
-                                <option value="name-desc">Name (Z-A)</option>
-                            </select>
+                            <div class="select-wrapper small-select">
+                                <select id="sortBy">
+                                    <option value="note-desc">Rating (high to low)</option>
+                                    <option value="note-asc">Rating (low to high)</option>
+                                    <option value="time-asc">Driving time (short to long)</option>
+                                    <option value="time-desc">Driving time (long to short)</option>
+                                    <option value="name-asc">Name (A-Z)</option>
+                                    <option value="name-desc">Name (Z-A)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="results-count" id="results-count"></div>
