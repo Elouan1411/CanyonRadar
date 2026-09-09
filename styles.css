@@ -487,6 +487,65 @@ button {
     border-color: #cbd5e1;
 }
 
+/* Single canyon (inverse mode) full-width card */
+.canyon-single {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.canyon-single-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.canyon-single-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 1.1rem;
+}
+
+.canyon-single-route {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--color-border);
+    position: relative;
+    z-index: 2;
+}
+
+.canyon-single-route .canyon-route-link {
+    flex-direction: row;
+    gap: 0.6rem;
+    align-items: center;
+    font-size: 1.15rem;
+}
+
+.canyon-single-route .route-time {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--color-primary);
+}
+
+.canyon-single-route .route-dist {
+    font-size: 0.95rem;
+}
+
+.canyon-single-route i {
+    font-size: 1.4rem;
+}
+
 .canyon-main-link {
     position: absolute;
     inset: 0;

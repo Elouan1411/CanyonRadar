@@ -55,6 +55,11 @@ const i18n = {
         exportSuccess: 'CSV exported successfully',
         searchPlaceholder: 'Enter a city',
         coordsPlaceholder: '46.728250, 8.183964',
+        singleCanyon: 'Single canyon',
+        searchCanyon: 'Search a canyon...',
+        selectCanyonFromSuggestions: 'Please select a canyon from the suggestions',
+        timeToCanyon: (name, time, dist) => `It takes ${time} min (${dist} km) to reach ${name}`,
+        routeOverview: 'Route overview',
     },
     fr: {
         selectLocation: 'Choisir la localisation',
@@ -103,6 +108,11 @@ const i18n = {
         exportSuccess: 'CSV exporté avec succès',
         searchPlaceholder: 'Entrez une ville',
         coordsPlaceholder: '46.728250, 8.183964',
+        singleCanyon: 'Canyon unique',
+        searchCanyon: 'Rechercher un canyon...',
+        selectCanyonFromSuggestions: 'Veuillez sélectionner un canyon dans les suggestions',
+        timeToCanyon: (name, time, dist) => `Il faut ${time} min (${dist} km) pour rejoindre ${name}`,
+        routeOverview: 'Aperçu de la route',
     },
 };
 
@@ -169,6 +179,7 @@ function applyTranslations() {
     document.querySelectorAll('.radio-label')[0].querySelector('.radio-text').textContent = t('currentLocation');
     document.querySelectorAll('.radio-label')[1].querySelector('.radio-text').textContent = t('searchCity');
     document.querySelectorAll('.radio-label')[2].querySelector('.radio-text').textContent = t('gpsCoordinates');
+    document.querySelectorAll('.radio-label')[3].querySelector('.radio-text').textContent = t('singleCanyon');
 
     els.btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> ${t('findTrip')}`;
     els.exportBtn.innerHTML = `<i class="fa-solid fa-file-csv"></i> ${t('exportCSV')}`;
@@ -270,11 +281,24 @@ let locationTimeout;
 function onLocationChange(index) {
     const oldCity = document.getElementById('divSearchCity');
     const oldCoord = document.getElementById('divCoordonnee');
+    const oldCanyon = document.getElementById('divSearchCanyon');
     if (oldCity) oldCity.remove();
     if (oldCoord) oldCoord.remove();
+    if (oldCanyon) oldCanyon.remove();
+
+    // Show/hide max time selector based on mode
+    const divMaxTime = document.getElementById('divMaxTime');
+    const resultsControls = document.getElementById('results-controls');
+    if (index === 3) {
+        divMaxTime.classList.add('hidden');
+        resultsControls.classList.add('hidden');
+    } else {
+        divMaxTime.classList.remove('hidden');
+    }
 
     if (index === 1) createCitySearchInput();
     if (index === 2) createCoordInput();
+    if (index === 3) createCanyonSearchInput();
 }
 
 function createCitySearchInput() {
@@ -304,6 +328,50 @@ function createCoordInput() {
     document.querySelectorAll('.selectLocation label')[2].insertAdjacentElement('afterend', div);
 }
 
+/* ── Canyon search for inverse mode ── */
+let canyonSearchInput, canyonSuggestions;
+let canyonSearchTimeout;
+
+function createCanyonSearchInput() {
+    const div = document.createElement('div');
+    div.id = 'divSearchCanyon';
+    div.className = 'dynamic-input';
+    div.innerHTML = `
+        <input type="text" id="searchCanyon" placeholder="${t('searchCanyon')}" autocomplete="off"/>
+        <ul id="canyonSuggestions"></ul>
+    `;
+    const labels = document.querySelectorAll('.selectLocation label');
+    labels[labels.length - 1].insertAdjacentElement('afterend', div);
+
+    canyonSearchInput = document.getElementById('searchCanyon');
+    canyonSuggestions = document.getElementById('canyonSuggestions');
+
+    canyonSearchInput.addEventListener('input', () => {
+        clearTimeout(canyonSearchTimeout);
+        canyonSearchTimeout = setTimeout(() => searchCanyonByName(canyonSearchInput.value.trim()), 200);
+    });
+}
+
+function searchCanyonByName(query) {
+    canyonSuggestions.innerHTML = '';
+    if (query.length < 2) return;
+
+    const matches = state.dataDB
+        .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 8);
+
+    matches.forEach((c) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${c.name}</strong> <span style="color:#64748b;font-size:0.85em">${c.cotation && c.cotation !== '??' ? c.cotation : ''}</span>`;
+        li.addEventListener('mousedown', () => {
+            canyonSearchInput.value = c.name;
+            canyonSuggestions.innerHTML = '';
+            state.selectedCanyon = c;
+        });
+        canyonSuggestions.appendChild(li);
+    });
+}
+
 async function doSearch(query) {
     suggestions.innerHTML = '';
     if (query.length < 3) return;
@@ -329,7 +397,7 @@ async function doSearch(query) {
 }
 
 /* ================================================================
-   4. Search Flow
+   4. Search Flow (Standard + Inverse)
    ================================================================ */
 
 async function onSearch() {
@@ -337,6 +405,13 @@ async function onSearch() {
 
     const choice = document.querySelector('input[name="choiceLocation"]:checked')?.value;
 
+    // ── Inverse mode: single canyon time calculation ──
+    if (choice === 'inverse') {
+        await onSearchInverse();
+        return;
+    }
+
+    // ── Standard multi-canyon search ──
     try {
         if (choice === 'selectLocation') {
             if (!state.start) {
@@ -383,6 +458,52 @@ async function onSearch() {
         } else {
             showToast(t('foundCanyons', state.filteredResults.length), 'success');
         }
+    } catch (err) {
+        console.error(err);
+        showToast(t('routeError'), 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function onSearchInverse() {
+    if (!state.selectedCanyon) {
+        showToast(t('selectCanyonFromSuggestions'), 'warning');
+        return;
+    }
+
+    const c = state.selectedCanyon;
+
+    // Resolve start location (current location in inverse mode)
+    try {
+        state.start = await resolveCurrentLocation();
+    } catch (err) {
+        showToast(err, 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const apiData = await callAPIServer([c]);
+        const durationSec = apiData.durations[0];
+        const distanceM = apiData.distances[0];
+        if (durationSec === null || distanceM === null) {
+            showToast(t('noRoutes'), 'error');
+            showLoading(false);
+            return;
+        }
+        const durationMin = Math.round(durationSec / 60);
+        const distanceKm = Math.round(distanceM / 1000);
+
+        const item = {
+            canyon: c,
+            durationMin,
+            distanceKm,
+            DC_link: `https://www.descente-canyon.com/canyoning${c.DC_link}`,
+            linkMaps: `https://www.google.com/maps/dir/?api=1&origin=${state.start[1]},${state.start[0]}&destination=${c.lat},${c.long}&travelmode=driving`,
+        };
+        renderSingleResult(item);
+        showToast(t('timeToCanyon', c.name, durationMin, distanceKm), 'success');
     } catch (err) {
         console.error(err);
         showToast(t('routeError'), 'error');
@@ -573,6 +694,50 @@ function renderResults() {
     });
 
     els.canyonList.appendChild(fragment);
+}
+
+function renderSingleResult(item) {
+    els.canyonList.innerHTML = '';
+    els.resultPre.textContent = '';
+
+    const c = item.canyon;
+
+    let ratingHTML = '';
+    if (c.note === 0) {
+        ratingHTML = `<span class="canyon-badge canyon-badge-danger"><i class="fa-solid fa-ban"></i> ${t('forbiddenMissing')}</span>`;
+    } else {
+        ratingHTML = `<span class="rating-number">${c.note}</span>`;
+        const fullStars = Math.floor(c.note);
+        const halfStar = (c.note - fullStars) >= 0.5;
+        for (let s = 0; s < fullStars; s++) ratingHTML += `<i class="fa-solid fa-star star-icon"></i>`;
+        if (halfStar) ratingHTML += `<i class="fa-solid fa-star-half-stroke star-icon"></i>`;
+    }
+
+    const cotationBadge = c.cotation && c.cotation !== '??'
+        ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>`
+        : '';
+
+    const extraDetails = buildExtraDetails(c);
+
+    const li = document.createElement('li');
+    li.className = 'canyon canyon-single';
+    li.innerHTML = `
+        <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="${c.name} ${t('openCanyon')}"></a>
+        <div class="canyon-single-header">
+            <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
+            <div class="canyon-single-rating" title="${t('rating')}">${ratingHTML}</div>
+        </div>
+        <div class="canyon-single-route">
+            <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="${t('openRoute')}">
+                <i class="fa-solid fa-map-location-dot"></i>
+                <span class="route-time">${item.durationMin} min</span>
+                <span class="route-dist">${item.distanceKm} km</span>
+            </a>
+        </div>
+        <div class="canyon-extra">${extraDetails}</div>
+    `;
+
+    els.canyonList.appendChild(li);
 }
 
 function buildExtraDetails(c) {
