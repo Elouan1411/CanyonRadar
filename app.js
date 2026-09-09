@@ -3,7 +3,7 @@
    ================================================================ */
 
 // ── Constants ──
-const AVERAGE_SPEED = 75; // km/h (slightly more realistic for mountain roads)
+const AVERAGE_SPEED = 75;
 const TOAST_DURATION = 4000;
 
 // ── i18n ──
@@ -31,6 +31,7 @@ const i18n = {
         noCanyonsMatch: 'No canyons match your filters.',
         calculating: 'Calculating driving times...',
         selectCityFromSuggestions: 'Please select a city from the suggestions',
+        selectCanyonFromSuggestions: 'Please select a canyon from the suggestions',
         invalidCoords: 'Invalid coordinates format. Use: lat, lng (e.g. 46.728250, 8.183964)',
         geoUnsupported: 'Geolocation is not supported by this browser.',
         geoDenied: 'Location permission denied.',
@@ -55,9 +56,10 @@ const i18n = {
         exportSuccess: 'CSV exported successfully',
         searchPlaceholder: 'Enter a city',
         coordsPlaceholder: '46.728250, 8.183964',
-        singleCanyon: 'Single canyon',
+        tabNearby: 'Find nearby',
+        tabInverse: 'Single canyon',
+        findCanyon: 'Find a specific canyon',
         searchCanyon: 'Search a canyon...',
-        selectCanyonFromSuggestions: 'Please select a canyon from the suggestions',
         timeToCanyon: (name, time, dist) => `It takes ${time} min (${dist} km) to reach ${name}`,
         routeOverview: 'Route overview',
     },
@@ -84,6 +86,7 @@ const i18n = {
         noCanyonsMatch: 'Aucun canyon ne correspond à vos filtres.',
         calculating: 'Calcul des temps de route...',
         selectCityFromSuggestions: 'Veuillez sélectionner une ville dans les suggestions',
+        selectCanyonFromSuggestions: 'Veuillez sélectionner un canyon dans les suggestions',
         invalidCoords: "Format de coordonnées invalide. Utilisez : lat, lng (ex: 46.728250, 8.183964)",
         geoUnsupported: "La géolocalisation n'est pas supportée par ce navigateur.",
         geoDenied: 'Permission de localisation refusée.',
@@ -108,9 +111,10 @@ const i18n = {
         exportSuccess: 'CSV exporté avec succès',
         searchPlaceholder: 'Entrez une ville',
         coordsPlaceholder: '46.728250, 8.183964',
-        singleCanyon: 'Canyon unique',
+        tabNearby: 'Recherche locale',
+        tabInverse: 'Canyon unique',
+        findCanyon: 'Rechercher un canyon spécifique',
         searchCanyon: 'Rechercher un canyon...',
-        selectCanyonFromSuggestions: 'Veuillez sélectionner un canyon dans les suggestions',
         timeToCanyon: (name, time, dist) => `Il faut ${time} min (${dist} km) pour rejoindre ${name}`,
         routeOverview: 'Aperçu de la route',
     },
@@ -126,7 +130,9 @@ const t = (k, ...args) => {
 
 // ── State ──
 const state = {
+    mode: 'nearby', // 'nearby' | 'inverse'
     start: null,
+    selectedCanyon: null,
     rawResults: [],
     filteredResults: [],
     dataDB: [],
@@ -147,12 +153,16 @@ const els = {
     resultsCount: document.getElementById('results-count'),
     radios: document.querySelectorAll('input[name="choiceLocation"]'),
     toastContainer: document.getElementById('toast-container'),
-    selectLocationH2: document.querySelector('.selectLocation h2'),
-    maxTimeH2: document.querySelector('.divMaxTime h2'),
+    tabNearby: document.getElementById('tab-btn-nearby'),
+    tabInverse: document.getElementById('tab-btn-inverse'),
+    contentNearby: document.getElementById('tab-nearby'),
+    contentInverse: document.getElementById('tab-inverse'),
+    searchCanyonInput: document.getElementById('searchCanyon'),
+    canyonSuggestions: document.getElementById('canyonSuggestions'),
 };
 
-// ── Debounce util ──
-let searchTimeout;
+let searchTimeout, canyonSearchTimeout, locationTimeout;
+let searchInput, suggestions;
 
 /* ================================================================
    0. Translate static UI
@@ -160,80 +170,52 @@ let searchTimeout;
 
 function applyTranslations() {
     document.documentElement.lang = lang === 'fr' ? 'fr' : 'en';
-
-    // Header subtitle
     document.querySelector('.header-subtitle').textContent =
         lang === 'fr' ? 'Trouvez des canyons accessibles selon votre temps de route' : 'Find canyoning spots reachable within your driving time';
 
-    // Search panel
-    const locationIcon = els.selectLocationH2.querySelector('i');
-    els.selectLocationH2.innerHTML = '';
-    els.selectLocationH2.appendChild(locationIcon);
-    els.selectLocationH2.appendChild(document.createTextNode(' ' + t('selectLocation')));
+    // Tabs
+    document.getElementById('label-tab-nearby').textContent = t('tabNearby');
+    document.getElementById('label-tab-inverse').textContent = t('tabInverse');
 
-    const maxTimeIcon = els.maxTimeH2.querySelector('i');
-    els.maxTimeH2.innerHTML = '';
-    els.maxTimeH2.appendChild(maxTimeIcon);
-    els.maxTimeH2.appendChild(document.createTextNode(' ' + t('maxDrivingTime')));
+    // Nearby tab
+    document.getElementById('h2-location').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${t('selectLocation')}`;
+    document.getElementById('h2-time').innerHTML = `<i class="fa-solid fa-clock"></i> ${t('maxDrivingTime')}`;
+    document.getElementById('label-current').textContent = t('currentLocation');
+    document.getElementById('label-city').textContent = t('searchCity');
+    document.getElementById('label-gps').textContent = t('gpsCoordinates');
 
-    document.querySelectorAll('.radio-label')[0].querySelector('.radio-text').textContent = t('currentLocation');
-    document.querySelectorAll('.radio-label')[1].querySelector('.radio-text').textContent = t('searchCity');
-    document.querySelectorAll('.radio-label')[2].querySelector('.radio-text').textContent = t('gpsCoordinates');
-    document.querySelectorAll('.radio-label')[3].querySelector('.radio-text').textContent = t('singleCanyon');
+    // Inverse tab
+    document.getElementById('h2-inverse').innerHTML = `<i class="fa-solid fa-bullseye"></i> ${t('findCanyon')}`;
+    if (els.searchCanyonInput) els.searchCanyonInput.placeholder = t('searchCanyon');
 
-    els.btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> ${t('findTrip')}`;
-    els.exportBtn.innerHTML = `<i class="fa-solid fa-file-csv"></i> ${t('exportCSV')}`;
+    // Buttons
+    document.getElementById('btn-find').textContent = t('findTrip');
+    document.getElementById('btn-export').textContent = t('exportCSV');
 
     // Result controls
     els.resultSearch.placeholder = t('searchResults');
-    document.querySelector('.filter-group label').textContent = t('minRating');
-    document.querySelector('.sort-group label').textContent = t('sortBy');
+    document.getElementById('label-min-rating').textContent = t('minRating');
+    document.getElementById('label-sort').textContent = t('sortBy');
 
     // Options
-    const minNoteOptions = {
-        0: t('any'),
-        1: '1+', 2: '2+', 3: '3+', '3.5': '3.5+'
-    };
-    Array.from(els.minNoteFilter.options).forEach((opt) => {
-        opt.textContent = minNoteOptions[opt.value] ?? opt.value;
-    });
+    const minNoteOptions = { 0: t('any'), 1: '1+', 2: '2+', 3: '3+', '3.5': '3.5+' };
+    Array.from(els.minNoteFilter.options).forEach((opt) => { opt.textContent = minNoteOptions[opt.value] ?? opt.value; });
 
     const sortOptions = {
-        'note-desc': t('ratingHighLow'),
-        'note-asc': t('ratingLowHigh'),
-        'time-asc': t('timeShortLong'),
-        'time-desc': t('timeLongShort'),
-        'name-asc': t('nameAZ'),
-        'name-desc': t('nameZA'),
+        'note-desc': t('ratingHighLow'), 'note-asc': t('ratingLowHigh'),
+        'time-asc': t('timeShortLong'), 'time-desc': t('timeLongShort'),
+        'name-asc': t('nameAZ'), 'name-desc': t('nameZA'),
     };
-    Array.from(els.sortBy.options).forEach((opt) => {
-        opt.textContent = sortOptions[opt.value] ?? opt.value;
-    });
+    Array.from(els.sortBy.options).forEach((opt) => { opt.textContent = sortOptions[opt.value] ?? opt.value; });
 
     // Loading
-    document.querySelector('.loading p').textContent = t('calculating');
+    document.getElementById('loading-text').textContent = t('calculating');
 
     // Footer
-    document.querySelector('.footer-inner span:first-child').textContent = lang === 'fr'
-        ? 'Créé avec par Elouan'
-        : 'Made with by Elouan';
-    const heart = document.createElement('i');
-    heart.className = 'fa-solid fa-heart';
-    document.querySelector('.footer-inner span:first-child').appendChild(heart);
-    if (lang === 'fr') {
-        document.querySelector('.footer-inner span:first-child').childNodes[0].textContent = 'Créé avec ';
-        document.querySelector('.footer-inner span:first-child').appendChild(document.createTextNode(' par Elouan'));
-    } else {
-        document.querySelector('.footer-inner span:first-child').childNodes[0].textContent = 'Made with ';
-        document.querySelector('.footer-inner span:first-child').appendChild(document.createTextNode(' by Elouan'));
-    }
-    // Actually need to rebuild cleanly, but this is fragile. Let's simplify.
-
-    // Better approach: just rebuild footer first span
-    const firstFooter = document.querySelector('.footer-inner span:first-child');
-    firstFooter.innerHTML = lang === 'fr'
+    document.getElementById('footer-made').innerHTML = lang === 'fr'
         ? 'Créé avec <i class="fa-solid fa-heart"></i> par Elouan'
         : 'Made with <i class="fa-solid fa-heart"></i> by Elouan';
+    document.getElementById('footer-data').innerHTML = `${lang === 'fr' ? 'Données de' : 'Data from'} <a href="https://www.descente-canyon.com/" target="_blank">descente-canyon.com</a>`;
 }
 
 /* ================================================================
@@ -260,10 +242,16 @@ window.addEventListener('DOMContentLoaded', applyTranslations);
 els.btn.addEventListener('click', onSearch);
 els.exportBtn.addEventListener('click', onExport);
 
+// Tabs
+els.tabNearby.addEventListener('click', () => switchTab('nearby'));
+els.tabInverse.addEventListener('click', () => switchTab('inverse'));
+
+// Location radios (nearby mode)
 els.radios.forEach((radio, index) => {
     radio.addEventListener('change', () => onLocationChange(index));
 });
 
+// Filter / Sort listeners (nearby results)
 els.resultSearch.addEventListener('input', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(applyFiltersSort, 200);
@@ -271,34 +259,51 @@ els.resultSearch.addEventListener('input', () => {
 els.minNoteFilter.addEventListener('change', applyFiltersSort);
 els.sortBy.addEventListener('change', applyFiltersSort);
 
+// Canyon autocomplete (inverse mode)
+if (els.searchCanyonInput) {
+    els.searchCanyonInput.addEventListener('input', () => {
+        clearTimeout(canyonSearchTimeout);
+        canyonSearchTimeout = setTimeout(() => searchCanyonByName(els.searchCanyonInput.value.trim()), 200);
+    });
+}
+
 /* ================================================================
-   3. Location Inputs
+   3. Tabs Logic
    ================================================================ */
 
-let searchInput, suggestions;
-let locationTimeout;
+function switchTab(mode) {
+    state.mode = mode;
+
+    // Toggle tab buttons
+    els.tabNearby.classList.toggle('active', mode === 'nearby');
+    els.tabInverse.classList.toggle('active', mode === 'inverse');
+
+    // Toggle content
+    els.contentNearby.classList.toggle('hidden', mode !== 'nearby');
+    els.contentInverse.classList.toggle('hidden', mode !== 'inverse');
+
+    // Reset results
+    clearResults();
+    if (mode === 'inverse') {
+        els.resultsControls.classList.add('hidden');
+        els.exportBtn.style.display = 'none';
+    } else {
+        els.exportBtn.style.display = '';
+    }
+}
+
+/* ================================================================
+   4. Location Inputs (nearby mode)
+   ================================================================ */
 
 function onLocationChange(index) {
     const oldCity = document.getElementById('divSearchCity');
     const oldCoord = document.getElementById('divCoordonnee');
-    const oldCanyon = document.getElementById('divSearchCanyon');
     if (oldCity) oldCity.remove();
     if (oldCoord) oldCoord.remove();
-    if (oldCanyon) oldCanyon.remove();
-
-    // Show/hide max time selector based on mode
-    const divMaxTime = document.getElementById('divMaxTime');
-    const resultsControls = document.getElementById('results-controls');
-    if (index === 3) {
-        divMaxTime.classList.add('hidden');
-        resultsControls.classList.add('hidden');
-    } else {
-        divMaxTime.classList.remove('hidden');
-    }
 
     if (index === 1) createCitySearchInput();
     if (index === 2) createCoordInput();
-    if (index === 3) createCanyonSearchInput();
 }
 
 function createCitySearchInput() {
@@ -328,50 +333,6 @@ function createCoordInput() {
     document.querySelectorAll('.selectLocation label')[2].insertAdjacentElement('afterend', div);
 }
 
-/* ── Canyon search for inverse mode ── */
-let canyonSearchInput, canyonSuggestions;
-let canyonSearchTimeout;
-
-function createCanyonSearchInput() {
-    const div = document.createElement('div');
-    div.id = 'divSearchCanyon';
-    div.className = 'dynamic-input';
-    div.innerHTML = `
-        <input type="text" id="searchCanyon" placeholder="${t('searchCanyon')}" autocomplete="off"/>
-        <ul id="canyonSuggestions"></ul>
-    `;
-    const labels = document.querySelectorAll('.selectLocation label');
-    labels[labels.length - 1].insertAdjacentElement('afterend', div);
-
-    canyonSearchInput = document.getElementById('searchCanyon');
-    canyonSuggestions = document.getElementById('canyonSuggestions');
-
-    canyonSearchInput.addEventListener('input', () => {
-        clearTimeout(canyonSearchTimeout);
-        canyonSearchTimeout = setTimeout(() => searchCanyonByName(canyonSearchInput.value.trim()), 200);
-    });
-}
-
-function searchCanyonByName(query) {
-    canyonSuggestions.innerHTML = '';
-    if (query.length < 2) return;
-
-    const matches = state.dataDB
-        .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 8);
-
-    matches.forEach((c) => {
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>${c.name}</strong> <span style="color:#64748b;font-size:0.85em">${c.cotation && c.cotation !== '??' ? c.cotation : ''}</span>`;
-        li.addEventListener('mousedown', () => {
-            canyonSearchInput.value = c.name;
-            canyonSuggestions.innerHTML = '';
-            state.selectedCanyon = c;
-        });
-        canyonSuggestions.appendChild(li);
-    });
-}
-
 async function doSearch(query) {
     suggestions.innerHTML = '';
     if (query.length < 3) return;
@@ -397,37 +358,53 @@ async function doSearch(query) {
 }
 
 /* ================================================================
-   4. Search Flow (Standard + Inverse)
+   5. Canyon Autocomplete (inverse mode)
+   ================================================================ */
+
+function searchCanyonByName(query) {
+    els.canyonSuggestions.innerHTML = '';
+    if (query.length < 2) return;
+
+    const matches = state.dataDB
+        .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 8);
+
+    matches.forEach((c) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${c.name}</strong> <span>${c.cotation && c.cotation !== '??' ? c.cotation : ''}</span>`;
+        li.addEventListener('mousedown', () => {
+            els.searchCanyonInput.value = c.name;
+            els.canyonSuggestions.innerHTML = '';
+            state.selectedCanyon = c;
+        });
+        els.canyonSuggestions.appendChild(li);
+    });
+}
+
+/* ================================================================
+   6. Search Flow
    ================================================================ */
 
 async function onSearch() {
     clearResults();
 
-    const choice = document.querySelector('input[name="choiceLocation"]:checked')?.value;
-
-    // ── Inverse mode: single canyon time calculation ──
-    if (choice === 'inverse') {
+    if (state.mode === 'inverse') {
         await onSearchInverse();
         return;
     }
 
-    // ── Standard multi-canyon search ──
+    // Nearby mode
+    const choice = document.querySelector('input[name="choiceLocation"]:checked')?.value;
     try {
         if (choice === 'selectLocation') {
-            if (!state.start) {
-                showToast(t('selectCityFromSuggestions'), 'warning');
-                return;
-            }
+            if (!state.start) { showToast(t('selectCityFromSuggestions'), 'warning'); return; }
         } else if (choice === 'coordonnee') {
             state.start = parseManualCoords();
             if (!state.start) return;
         } else {
             state.start = await resolveCurrentLocation();
         }
-    } catch (err) {
-        showToast(err, 'error');
-        return;
-    }
+    } catch (err) { showToast(err, 'error'); return; }
 
     const maxTime = Number(document.getElementById('maxTime').value);
     showLoading(true);
@@ -435,17 +412,8 @@ async function onSearch() {
     const candidates = getCandidates(maxTime, state.start);
     console.log(`Candidates pre-filtered: ${candidates.length}`);
 
-    if (candidates.length === 0) {
-        showToast(t('noCandidates'), 'info');
-        showLoading(false);
-        return;
-    }
-
-    if (candidates.length > 600) {
-        showToast(t('tooManyCandidates', candidates.length), 'warning');
-        showLoading(false);
-        return;
-    }
+    if (candidates.length === 0) { showToast(t('noCandidates'), 'info'); showLoading(false); return; }
+    if (candidates.length > 600) { showToast(t('tooManyCandidates', candidates.length), 'warning'); showLoading(false); return; }
 
     try {
         const apiData = await callAPIServer(candidates);
@@ -461,9 +429,7 @@ async function onSearch() {
     } catch (err) {
         console.error(err);
         showToast(t('routeError'), 'error');
-    } finally {
-        showLoading(false);
-    }
+    } finally { showLoading(false); }
 }
 
 async function onSearchInverse() {
@@ -473,14 +439,8 @@ async function onSearchInverse() {
     }
 
     const c = state.selectedCanyon;
-
-    // Resolve start location (current location in inverse mode)
-    try {
-        state.start = await resolveCurrentLocation();
-    } catch (err) {
-        showToast(err, 'error');
-        return;
-    }
+    try { state.start = await resolveCurrentLocation(); }
+    catch (err) { showToast(err, 'error'); return; }
 
     showLoading(true);
     try {
@@ -488,9 +448,7 @@ async function onSearchInverse() {
         const durationSec = apiData.durations[0];
         const distanceM = apiData.distances[0];
         if (durationSec === null || distanceM === null) {
-            showToast(t('noRoutes'), 'error');
-            showLoading(false);
-            return;
+            showToast(t('noRoutes'), 'error'); showLoading(false); return;
         }
         const durationMin = Math.round(durationSec / 60);
         const distanceKm = Math.round(distanceM / 1000);
@@ -507,27 +465,19 @@ async function onSearchInverse() {
     } catch (err) {
         console.error(err);
         showToast(t('routeError'), 'error');
-    } finally {
-        showLoading(false);
-    }
+    } finally { showLoading(false); }
 }
 
 function parseManualCoords() {
     const val = document.getElementById('coordonnee')?.value || '';
     const match = val.match(/(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/);
-    if (!match) {
-        showToast(t('invalidCoords'), 'warning');
-        return null;
-    }
+    if (!match) { showToast(t('invalidCoords'), 'warning'); return null; }
     return [parseFloat(match[2]), parseFloat(match[1])];
 }
 
 function resolveCurrentLocation() {
     return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-            reject(t('geoUnsupported'));
-            return;
-        }
+        if (!navigator.geolocation) { reject(t('geoUnsupported')); return; }
         navigator.geolocation.getCurrentPosition(
             (pos) => resolve([pos.coords.longitude, pos.coords.latitude]),
             (err) => {
@@ -545,7 +495,6 @@ function resolveCurrentLocation() {
 function callAPIServer(candidates) {
     const end = candidates.map((c) => [c.long, c.lat]);
     const endStr = encodeURIComponent(JSON.stringify(end));
-
     return fetch(`/api/duration?start=${state.start.join(',')}&end=${endStr}`)
         .then((res) => res.json())
         .then((data) => {
@@ -556,27 +505,21 @@ function callAPIServer(candidates) {
 }
 
 /* ================================================================
-   5. Results Building
+   7. Results Building
    ================================================================ */
 
 function buildRawResults(apiData, candidates, maxTime) {
     state.rawResults = [];
-
     for (let i = 0; i < apiData.durations.length; i++) {
         const durationSec = apiData.durations[i];
         const distanceM = apiData.distances[i];
         const c = candidates[i];
-
         if (durationSec === null || distanceM === null) continue;
-
         const durationMin = Math.round(durationSec / 60);
         const distanceKm = Math.round(distanceM / 1000);
-
         if (durationMin <= maxTime && durationMin >= 0) {
             state.rawResults.push({
-                canyon: c,
-                durationMin,
-                distanceKm,
+                canyon: c, durationMin, distanceKm,
                 DC_link: `https://www.descente-canyon.com/canyoning${c.DC_link}`,
                 linkMaps: `https://www.google.com/maps/dir/?api=1&origin=${state.start[1]},${state.start[0]}&destination=${c.lat},${c.long}&travelmode=driving`,
             });
@@ -585,7 +528,7 @@ function buildRawResults(apiData, candidates, maxTime) {
 }
 
 /* ================================================================
-   6. Filter & Sort Logic
+   8. Filter & Sort Logic
    ================================================================ */
 
 function applyFiltersSort() {
@@ -594,14 +537,8 @@ function applyFiltersSort() {
     const sortMode = els.sortBy.value;
 
     let data = [...state.rawResults];
-
-    if (searchVal) {
-        data = data.filter((r) => r.canyon.name.toLowerCase().includes(searchVal));
-    }
-
-    if (minNote > 0) {
-        data = data.filter((r) => r.canyon.note >= minNote);
-    }
+    if (searchVal) data = data.filter((r) => r.canyon.name.toLowerCase().includes(searchVal));
+    if (minNote > 0) data = data.filter((r) => r.canyon.note >= minNote);
 
     const [key, dir] = sortMode.split('-');
     data.sort((a, b) => {
@@ -609,7 +546,6 @@ function applyFiltersSort() {
         if (key === 'note') { va = a.canyon.note; vb = b.canyon.note; }
         else if (key === 'time') { va = a.durationMin; vb = b.durationMin; }
         else { va = a.canyon.name.toLowerCase(); vb = b.canyon.name.toLowerCase(); }
-
         if (va < vb) return dir === 'asc' ? -1 : 1;
         if (va > vb) return dir === 'asc' ? 1 : -1;
         return 0;
@@ -620,7 +556,7 @@ function applyFiltersSort() {
 }
 
 /* ================================================================
-   7. Rendering
+   9. Rendering
    ================================================================ */
 
 function renderResults() {
@@ -629,14 +565,9 @@ function renderResults() {
 
     const count = state.filteredResults.length;
     els.resultsCount.textContent = count > 0 ? t('results', count) : t('noResults');
-
-    if (count === 0) {
-        els.resultPre.textContent = t('noCanyonsMatch');
-        return;
-    }
+    if (count === 0) { els.resultPre.textContent = t('noCanyonsMatch'); return; }
 
     const fragment = document.createDocumentFragment();
-
     state.filteredResults.forEach((item) => {
         const c = item.canyon;
 
@@ -652,9 +583,7 @@ function renderResults() {
         }
 
         const cotationBadge = c.cotation && c.cotation !== '??'
-            ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>`
-            : '';
-
+            ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>` : '';
         const extraDetails = buildExtraDetails(c);
 
         const li = document.createElement('li');
@@ -670,29 +599,22 @@ function renderResults() {
                 </a>
             </div>
             <div class="canyon-meta">
-                <div class="canyon-rating" title="${t('rating')}">
-                    ${ratingHTML}
-                </div>
-                <button class="canyon-expand-btn" aria-label="${t('showDetails')}">
-                    <i class="fa-solid fa-chevron-down"></i>
-                </button>
+                <div class="canyon-rating" title="${t('rating')}">${ratingHTML}</div>
+                <button class="canyon-expand-btn" aria-label="${t('showDetails')}"><i class="fa-solid fa-chevron-down"></i></button>
             </div>
             <div class="canyon-extra">${extraDetails}</div>
         `;
 
         const expandBtn = li.querySelector('.canyon-expand-btn');
         expandBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             const isExpanded = li.classList.toggle('expanded');
             const icon = expandBtn.querySelector('i');
             icon.classList.toggle('fa-chevron-down', !isExpanded);
             icon.classList.toggle('fa-chevron-up', isExpanded);
         });
-
         fragment.appendChild(li);
     });
-
     els.canyonList.appendChild(fragment);
 }
 
@@ -701,7 +623,6 @@ function renderSingleResult(item) {
     els.resultPre.textContent = '';
 
     const c = item.canyon;
-
     let ratingHTML = '';
     if (c.note === 0) {
         ratingHTML = `<span class="canyon-badge canyon-badge-danger"><i class="fa-solid fa-ban"></i> ${t('forbiddenMissing')}</span>`;
@@ -714,9 +635,7 @@ function renderSingleResult(item) {
     }
 
     const cotationBadge = c.cotation && c.cotation !== '??'
-        ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>`
-        : '';
-
+        ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>` : '';
     const extraDetails = buildExtraDetails(c);
 
     const li = document.createElement('li');
@@ -736,21 +655,30 @@ function renderSingleResult(item) {
         </div>
         <div class="canyon-extra">${extraDetails}</div>
     `;
-
     els.canyonList.appendChild(li);
 }
 
 function buildExtraDetails(c) {
-    const fields = [
-        { label: lang === 'fr' ? 'Altitude départ' : 'Altitude departure', val: c.alt_dep },
-        { label: lang === 'fr' ? 'Dénivelé' : 'Elevation change', val: c.deniv },
-        { label: lang === 'fr' ? 'Longueur' : 'Length', val: c.longueur },
-        { label: lang === 'fr' ? 'Hauteur max' : 'Max height', val: c.haut_max },
-        { label: lang === 'fr' ? 'Corde' : 'Rope', val: c.corde },
-        { label: lang === 'fr' ? 'Approche' : 'Approach', val: c.tps_approche },
-        { label: lang === 'fr' ? 'Descente' : 'Descent', val: c.tps_desc },
-        { label: lang === 'fr' ? 'Retour' : 'Return', val: c.tps_retour },
-        { label: lang === 'fr' ? 'Navette' : 'Shuttle', val: c.navette },
+    const fields = lang === 'fr' ? [
+        { label: 'Altitude départ', val: c.alt_dep },
+        { label: 'Dénivelé', val: c.deniv },
+        { label: 'Longueur', val: c.longueur },
+        { label: 'Hauteur max', val: c.haut_max },
+        { label: 'Corde', val: c.corde },
+        { label: 'Approche', val: c.tps_approche },
+        { label: 'Descente', val: c.tps_desc },
+        { label: 'Retour', val: c.tps_retour },
+        { label: 'Navette', val: c.navette },
+    ] : [
+        { label: 'Altitude departure', val: c.alt_dep },
+        { label: 'Elevation change', val: c.deniv },
+        { label: 'Length', val: c.longueur },
+        { label: 'Max height', val: c.haut_max },
+        { label: 'Rope', val: c.corde },
+        { label: 'Approach', val: c.tps_approche },
+        { label: 'Descent', val: c.tps_desc },
+        { label: 'Return', val: c.tps_retour },
+        { label: 'Shuttle', val: c.navette },
     ];
 
     let rows = fields
@@ -764,6 +692,8 @@ function buildExtraDetails(c) {
             ? { depart: 'Départ', arrivee: 'Arrivée', parking_amont: 'Parking amont', parking_aval: 'Parking aval' }
             : { depart: 'Start', arrivee: 'End', parking_amont: 'Upstream parking', parking_aval: 'Downstream parking' };
         Object.entries(c.points).forEach(([key, pt]) => {
+            // FIX: guard against missing lat/long
+            if (!pt || pt.lat == null || pt.long == null) return;
             const label = ptLabels[key] || key;
             const mapsLink = `https://www.google.com/maps?q=${pt.lat},${pt.long}`;
             rows += `<div class="detail-row">
@@ -777,7 +707,7 @@ function buildExtraDetails(c) {
 }
 
 /* ================================================================
-   8. Utilities
+   10. Utilities
    ================================================================ */
 
 function getCandidates(maxTime, start) {
@@ -791,14 +721,11 @@ function haversineKm(a, b) {
     const dLon = toRad(b[0] - a[0]);
     const lat1 = toRad(a[1]);
     const lat2 = toRad(b[1]);
-
     const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
     return R * (2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x)));
 }
 
-function toRad(deg) {
-    return deg * (Math.PI / 180);
-}
+function toRad(deg) { return deg * (Math.PI / 180); }
 
 function clearResults() {
     state.rawResults = [];
@@ -816,22 +743,18 @@ function showLoading(show) {
 }
 
 /* ================================================================
-   9. Toast Notifications
+   11. Toast Notifications
    ================================================================ */
 
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
     const icon = icons[type] || icons.info;
-
     toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
     els.toastContainer.appendChild(toast);
-
     toast.offsetHeight;
     toast.classList.add('show');
-
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 350);
@@ -839,36 +762,20 @@ function showToast(message, type = 'info') {
 }
 
 /* ================================================================
-   10. Export
+   12. Export
    ================================================================ */
 
 function onExport() {
-    if (state.filteredResults.length === 0) {
-        showToast(t('exportEmpty'), 'warning');
-        return;
-    }
+    if (state.filteredResults.length === 0) { showToast(t('exportEmpty'), 'warning'); return; }
 
     const rows = state.filteredResults.map((r) => ({
-        Name: r.canyon.name,
-        Rating: r.canyon.note,
-        Duration_min: r.durationMin,
-        Distance_km: r.distanceKm,
-        Cotation: r.canyon.cotation,
-        Longitude: r.canyon.long,
-        Latitude: r.canyon.lat,
-        Altitude_depart: r.canyon.alt_dep,
-        Denivele: r.canyon.deniv,
-        Longueur: r.canyon.longueur,
-        Hauteur_max: r.canyon.haut_max,
-        Corde: r.canyon.corde,
-        Tps_approche: r.canyon.tps_approche,
-        Tps_descente: r.canyon.tps_desc,
-        Tps_retour: r.canyon.tps_retour,
-        Navette: r.canyon.navette,
-        URL: r.DC_link,
-        Route_URL: r.linkMaps,
+        Name: r.canyon.name, Rating: r.canyon.note, Duration_min: r.durationMin, Distance_km: r.distanceKm,
+        Cotation: r.canyon.cotation, Longitude: r.canyon.long, Latitude: r.canyon.lat,
+        Altitude_depart: r.canyon.alt_dep, Denivele: r.canyon.deniv, Longueur: r.canyon.longueur,
+        Hauteur_max: r.canyon.haut_max, Corde: r.canyon.corde, Tps_approche: r.canyon.tps_approche,
+        Tps_descente: r.canyon.tps_desc, Tps_retour: r.canyon.tps_retour, Navette: r.canyon.navette,
+        URL: r.DC_link, Route_URL: r.linkMaps,
     }));
-
     downloadCSV(rows, 'canyon_radar_export.csv');
     showToast(t('exportSuccess'), 'success');
 }
@@ -876,17 +783,12 @@ function onExport() {
 function downloadCSV(data, filename) {
     if (!data.length) return;
     const headers = Object.keys(data[0]);
-    const csv = [
-        headers.join(','),
-        ...data.map((row) =>
-            headers
-                .map((h) => {
-                    let val = row[h] ?? '';
-                    val = String(val).replace(/"/g, '""');
-                    return `"${val}"`;
-                })
-                .join(',')
-        ),
+    const csv = [headers.join(','),
+        ...data.map((row) => headers.map((h) => {
+            let val = row[h] ?? '';
+            val = String(val).replace(/"/g, '""');
+            return `"${val}"`;
+        }).join(',')),
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
