@@ -1,20 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
     <head>
-        <script type="text/javascript">
-            var _wsq = _wsq || [];
-            _wsq.push(["_setNom", "canyonradarelouanboite"]);
-            _wsq.push(["_wysistat"]);
-
-            (function () {
-                var ws = document.createElement("script");
-                ws.type = "text/javascript";
-                ws.async = true;
-                ws.src = ("https:" == document.location.protocol ? "https://www" : "http://www") + ".wysistat.com/ws.jsa";
-                var s = document.getElementsByTagName("script")[0] || document.getElementsByTagName("body")[0];
-                s.parentNode.insertBefore(ws, s);
-            })();
-        </script>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -22,53 +8,128 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
         <link rel="stylesheet" type="text/css" href="reset.css" />
         <link rel="stylesheet" type="text/css" href="styles.css" />
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <script src="app.js" defer></script>
     </head>
     <body>
-        <h1>Canyon Radar</h1>
-        <div class="wrapper">
-            <div class="divContent">
-                <div class="divSearch">
-                    <div class="selectLocation">
-                        <h2>Select location</h2>
-                        <label>
-                            <input type="radio" name="choiceLocation" value="currentLocation" checked />
-                            Current Location
-                        </label>
-                        <label>
-                            <input type="radio" name="choiceLocation" value="selectLocation" />
-                            Select Location
-                        </label>
-                        <label>
-                            <input type="radio" name="choiceLocation" value="coordonnee" />
-                            Coordonnées GPS
-                            <!-- TODO: mettre un i pour dire qu'on peut avoir sur google map -->
-                        </label>
-                    </div>
-                    <div class="divMaxTime">
-                        <h2>Maximum driving time</h2>
-                        <select id="maxTime" name="maxTime">
-                            <option value="15">15 min</option>
-                            <option value="30" selected>30 min</option>
-                            <option value="45">45 min</option>
-                            <option value="60">1 h</option>
-                            <option value="90">1 h 30 min</option>
-                            <option value="120">2 h</option>
-                            <option value="150">2 h 30 min</option>
-                            <option value="180">3 h</option>
-                            <option value="240">4 h</option>
-                        </select>
-                    </div>
-                    <div class="divButton">
-                        <button id="testBtn">Trouver ma prochaine sortie</button>
-                        <button id="export">Export to Excel</button>
-                    </div>
-                </div>
-                <div class="divResult">
-                    <pre id="result"></pre>
-                </div>
+        <!-- Toast container -->
+        <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+        <header class="site-header">
+            <div class="header-content">
+                <span class="header-badge"><i class="fa-solid fa-mountain"></i> Outdoor Tool</span>
+                <h1>Canyon Radar</h1>
+                <p class="header-subtitle">Find canyoning spots reachable within your driving time</p>
             </div>
-        </div>
+            <div class="header-overlay"></div>
+        </header>
+
+        <main class="wrapper">
+            <div class="divContent">
+                <!-- Search Panel -->
+                <section class="search-panel">
+                    <div class="divSearch">
+                        <div class="selectLocation">
+                            <h2><i class="fa-solid fa-location-dot"></i> Select location</h2>
+                            <label class="radio-label">
+                                <input type="radio" name="choiceLocation" value="currentLocation" checked />
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Current Location</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="choiceLocation" value="selectLocation" />
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Search City</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="choiceLocation" value="coordonnee" />
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">GPS Coordinates</span>
+                            </label>
+                        </div>
+
+                        <div class="divMaxTime">
+                            <h2><i class="fa-solid fa-clock"></i> Max driving time</h2>
+                            <div class="select-wrapper">
+                                <select id="maxTime" name="maxTime">
+                                    <option value="15">15 min</option>
+                                    <option value="30">30 min</option>
+                                    <option value="45">45 min</option>
+                                    <option value="60" selected>1 h</option>
+                                    <option value="90">1 h 30 min</option>
+                                    <option value="120">2 h</option>
+                                    <option value="150">2 h 30 min</option>
+                                    <option value="180">3 h</option>
+                                    <option value="240">4 h</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="divButton">
+                            <button id="testBtn" class="btn-primary">
+                                <i class="fa-solid fa-magnifying-glass"></i> Find my next trip
+                            </button>
+                            <button id="export" class="btn-secondary">
+                                <i class="fa-solid fa-file-csv"></i> Export to CSV
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Results Controls (hidden by default) -->
+                <section id="results-controls" class="results-controls hidden">
+                    <div class="controls-row">
+                        <div class="search-results">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" id="resultSearch" placeholder="Search results..." />
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="minNoteFilter">Min rating:</label>
+                            <select id="minNoteFilter">
+                                <option value="0">Any</option>
+                                <option value="1">1+</option>
+                                <option value="2">2+</option>
+                                <option value="3">3+</option>
+                                <option value="3.5">3.5+</option>
+                            </select>
+                        </div>
+
+                        <div class="sort-group">
+                            <label for="sortBy">Sort by:</label>
+                            <select id="sortBy">
+                                <option value="note-desc">Rating (high to low)</option>
+                                <option value="note-asc">Rating (low to high)</option>
+                                <option value="time-asc">Driving time (short to long)</option>
+                                <option value="time-desc">Driving time (long to short)</option>
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="results-count" id="results-count"></div>
+                </section>
+
+                <!-- Results Area -->
+                <section class="divResult">
+                    <div id="loading" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p>Calculating driving times...</p>
+                    </div>
+                    <pre id="result" class="status-message"></pre>
+                    <ul class="canyon-list" id="canyonList"></ul>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Made with <i class="fa-solid fa-heart"></i> by Elouan</span>
+                <span class="footer-separator">|</span>
+                <span>Data from <a href="https://www.descente-canyon.com/" target="_blank">descente-canyon.com</a></span>
+            </div>
+        </footer>
     </body>
-    <footer>Crédit Elouan</footer>
 </html>

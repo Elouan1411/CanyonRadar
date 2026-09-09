@@ -1,470 +1,553 @@
-const btn = document.getElementById("testBtn");
-const result = document.getElementById("result");
-let dataDB = [];
-let suggestions, searchInput;
-// Debounce pour limiter les requêtes
-let timeout;
-let start; //TODO: faire pour ne pas que ca soit global²
-const AVERAGE_SPEED = 80;
-let canyonList = [];
+/* ================================================================
+   Canyon Radar - Main Application
+   ================================================================ */
 
-// Clique du bouton de recherche
-btn.addEventListener("click", async () => {
-    // Supprimer les anciens resultats
-    deleteOldResult();
+// ── Constants ──
+const AVERAGE_SPEED = 75; // km/h (slightly more realistic for mountain roads)
+const TOAST_DURATION = 4000;
 
-    // Récupérer le choix de l'utilisateur (checkbox / radio)
-    let choix = document.querySelector(
-        'input[name="choiceLocation"]:checked'
-    )?.value;
-    if (choix) {
-        console.log(`Le choix sélectionné est : ${choix}`);
-    }
-    //TODO: faire plutot un case
-    if (choix == "selectLocation") {
-        if (start == undefined) {
-            console.log("barre de recherche pas complété");
-            result.textContent =
-                "Erreur, vous n'avez pas compléter comme il faut la barre de recherche";
-            return;
-        }
-    } else if (choix == "coordonnee") {
-        start = getCoordMannuelUser(start);
-    } else {
-        await getLocation();
-    }
-    console.log("le start :", start);
-    console.log("Coordonnées de départ :", start);
-    result.textContent = `Coordonnées récupérées : ${start[1]}, ${start[0]}`;
+// ── State ──
+const state = {
+    start: null,
+    rawResults: [],       // { canyon, duration, distanceKm, durationMin, linkMaps, DC_link }
+    filteredResults: [],
+    dataDB: [],
+    isLoading: false,
+};
 
-    // Récupérer le temps que l'utilisateur a choisi
-    let maxTime = getMaxTime();
+// ── DOM refs ──
+const els = {
+    btn: document.getElementById('testBtn'),
+    exportBtn: document.getElementById('export'),
+    resultPre: document.getElementById('result'),
+    canyonList: document.getElementById('canyonList'),
+    loading: document.getElementById('loading'),
+    resultsControls: document.getElementById('results-controls'),
+    resultSearch: document.getElementById('resultSearch'),
+    minNoteFilter: document.getElementById('minNoteFilter'),
+    sortBy: document.getElementById('sortBy'),
+    resultsCount: document.getElementById('results-count'),
+    radios: document.querySelectorAll('input[name="choiceLocation"]'),
+    toastContainer: document.getElementById('toast-container'),
+};
 
-    // Récupérer tout les potentiels canyon candidats
-    let candidats = getCandidats(maxTime, start);
-    let data = await callAPIServeur(candidats);
-    console.log("data:", data);
-    displayResult(data, candidats, maxTime, start);
-});
+// ── Debounce util ──
+let searchTimeout;
 
-let radiosChoiceLocation = document.querySelectorAll(
-    'input[name="choiceLocation"]'
-);
-// Création du listener pour currentLocation
-radiosChoiceLocation[0].addEventListener("change", function () {
-    // Suppression des inputs
-    let divSearchCity = document.getElementById("divSearchCity");
-    if (divSearchCity) {
-        divSearchCity.remove();
-    }
-    let divCoordonnee = document.getElementById("divCoordonnee");
-    if (divCoordonnee) {
-        divCoordonnee.remove();
-    }
-});
-
-// Création de la barre de recherche si choix du select Location
-radiosChoiceLocation[1].addEventListener("change", function () {
-    // Suppression de l'input coordonnnee
-    let divCoordonnee = document.getElementById("divCoordonnee");
-    if (divCoordonnee) {
-        divCoordonnee.remove();
-    }
-    // Création de la div
-    let divSearch = document.createElement("div");
-    divSearch.id = "divSearchCity";
-    divSearch.innerHTML = `<input type="text" id="search" placeholder="Entrez une ville"/><ul id="suggestions"></ul>`;
-    // Insertion dans le code html juste après le 2e label
-    document
-        .querySelectorAll("label")[1]
-        .insertAdjacentElement("afterend", divSearch);
-
-    // Attributions des valeurs aux deux variables searchInput et suggestions
-    searchInput = document.getElementById("search");
-    suggestions = document.getElementById("suggestions");
-
-    // Lancement d'un listener quand on tape dans la barre de recherche -> lance la fonction doSearch
-    searchInput.addEventListener("input", () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            doSearch(searchInput.value.trim());
-        }, 300);
-    });
-});
-
-radiosChoiceLocation[2].addEventListener("change", function () {
-    // Suppression de l'input search
-    let divSearchCity = document.getElementById("divSearchCity");
-    if (divSearchCity) {
-        divSearchCity.remove();
-    }
-    // Création de la div
-    let divSearch = document.createElement("div");
-    divSearch.id = "divCoordonnee";
-    divSearch.innerHTML = `<input type="text" id="coordonnee" placeholder="46.728250, 8.183964"/>`;
-    // Insertion dans le code html juste après le 2e label
-    document
-        .querySelectorAll("label")[2]
-        .insertAdjacentElement("afterend", divSearch);
-});
-
-async function doSearch(query) {
-    suggestions.innerHTML = ""; // Vider les anciennes suggestions
-
-    if (query.length < 3) return;
-
-    let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        query
-    )}&limit=5`;
-
-    try {
-        let response = await fetch(url, {
-            headers: { "User-Agent": "DemoApp" },
-        });
-        let results = await response.json();
-
-        // On ne garde que 5 résultats max (API limit=5 mais au cas où)
-        results.slice(0, 5).forEach((city) => {
-            const li = document.createElement("li");
-            li.textContent = city.display_name;
-            li.style.cursor = "pointer";
-            li.style.padding = "8px";
-            li.style.borderBottom = "1px solid #eee";
-
-            li.addEventListener(
-                "mouseover",
-                () => (li.style.background = "#f0f0f0")
-            );
-            li.addEventListener(
-                "mouseout",
-                () => (li.style.background = "white")
-            );
-
-            // Utiliser mousedown pour éviter le problème de focus
-            li.addEventListener("mousedown", () => {
-                searchInput.value = city.display_name;
-                suggestions.innerHTML = "";
-
-                // Récupérer les coordonnées
-                // alert(
-                //     `Ville: ${city.display_name}\nLatitude: ${lat}\nLongitude: ${lon}`
-                // );
-                start = [parseFloat(city.lon), parseFloat(city.lat)];
-                console.log("start from search :", start);
-            });
-
-            suggestions.appendChild(li);
-        });
-    } catch (error) {
-        console.error("Erreur API:", error);
-    }
-}
+/* ================================================================
+   1. Initialization
+   ================================================================ */
 
 async function loadData() {
     try {
-        const res = await fetch("/data/data.json"); // JSON dans public/
-        dataDB = await res.json(); // met le tableau dans la variable globale
+        const res = await fetch('/data/data.json');
+        state.dataDB = await res.json();
     } catch (err) {
-        console.error("Erreur en chargeant dataDB :", err);
+        console.error('Error loading dataDB:', err);
+        showToast('Failed to load canyon database', 'error');
     }
-}
-
-async function getLocation() {
-    //TODO: Redemander la localisation si il a refusé
-    if (!navigator.geolocation) {
-        result.textContent =
-            "La géolocalisation n’est pas supportée par ce navigateur.";
-        return;
-    }
-    //TODO: récupérer la ville en fonction des coordonnées pour afficher
-    // Récupération des coordonnées GPS de l'utilisateur
-    start = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                resolve([position.coords.longitude, position.coords.latitude]); // ORS attend [lon, lat]
-            },
-            (error) => {
-                switch (
-                    error.code //TODO: ecrire les messages d'erreurs au bon endroit
-                ) {
-                    case error.PERMISSION_DENIED:
-                        reject(
-                            "Permission refusée pour accéder à la géolocalisation."
-                        );
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        reject("Position indisponible.");
-                        break;
-                    case error.TIMEOUT:
-                        reject("La requête de géolocalisation a expiré.");
-                        break;
-                    default:
-                        reject("Erreur inconnue lors de la géolocalisation.");
-                }
-            }
-        );
-    });
-}
-
-async function callAPIServeur(candidats) {
-    try {
-        // Destinations
-        const end = candidats.map((item) => [item.long, item.lat]);
-        console.log(end);
-
-        const endStr = encodeURIComponent(JSON.stringify(end));
-
-        // Appel à l'API Matrix
-        const res = await fetch(
-            `/api/duration?start=${start.join(",")}&end=${endStr}`
-        );
-        const data = await res.json();
-
-        // Gestion des erreurs de l'API
-        if (data.error) {
-            result.textContent = "Coordonnées incorrectes ou non routables.";
-            return;
-        }
-
-        if (!data.durations || !data.durations.length) {
-            result.textContent =
-                "Aucun itinéraire trouvé pour ces coordonnées.";
-            return;
-        }
-        console.log("data récupéré par l'api");
-        return data;
-    } catch (err) {
-        result.textContent = "Erreur : " + err;
-        console.error(err);
-    }
-}
-
-function displayResult(data, canyon, maxTime, start) {
-    // On crée un tableau vide pour stocker les phrases
-    let phrases = [];
-    let vide = true;
-
-    //supprimer l'ancienne div avec tout ce que y a dedans si elle existe
-    let divResult = document.querySelector(".divResult");
-    let list_canyon = document.querySelector(".canyon-list");
-
-    if (!list_canyon) {
-        list_canyon = document.createElement("ul");
-        list_canyon.classList.add("canyon-list");
-        divResult.appendChild(list_canyon);
-    }
-
-    // On parcourt toutes les destinations
-    for (let i = 0; i < data.durations.length; i++) {
-        let duree = data.durations[i]; // temps en secondes
-        let distance = data.distances[i]; // distance en mètres
-        let DC_link = `https://www.descente-canyon.com/canyoning${canyon[i].DC_link}`;
-        let linkMaps = `https://www.google.com/maps/dir/?api=1&origin=${start[1]},${start[0]}&destination=${canyon[i].lat},${canyon[i].long}&travelmode=driving`;
-
-        // On arrondit la distance en km et la durée en minutes
-        let distanceKm = Math.round(distance / 1000);
-        let dureeMin = Math.round(duree / 60);
-
-        let cotation =
-            canyon[i].cotation != "??"
-                ? `<span class="cotation">${canyon[i].cotation}</span>`
-                : "";
-
-        if (dureeMin <= maxTime) {
-            vide = false;
-            canyonList.push(canyon[i]);
-            let bottom_left;
-            if (canyon[i].note == 0) {
-                bottom_left = `<i class="fa-solid fa-triangle-exclamation" style="color: #ff0000;"></i>
-                           <span class="red warning-canyon">Canyon interdit ou donnée manquante</span>`;
-            } else {
-                bottom_left = `<span class="note" title="${canyon[i].note}/4">${canyon[i].note}</span>`;
-                for (let j = 0; j < Math.trunc(canyon[i].note); j++) {
-                    bottom_left += `<span class="star" title="${canyon[i].note}/4">
-                                    <i class="fa-solid fa-star" style="color: #ffd43b"></i>
-                                </span>`;
-                }
-                if (canyon[i].note - Math.floor(canyon[i].note) >= 0.5) {
-                    bottom_left += `<span class="star" title="${canyon[i].note}/4">
-                                    <i class="fa-solid fa-star-half" style="color: #ffd43b"></i>
-                                </span>`;
-                }
-            }
-
-            let codeListe = `<a href="${DC_link}" target="_blank" class="full-link"></a>
-                            <div class="nameCotation">
-                                <span class="bold">${canyon[i].name}</span>
-                                ${cotation}
-                            </div>
-                            <span class="time right">
-                                <a href="${linkMaps}" target="_blank" class="time-link">
-                                    <i class="fa-solid fa-map-pin" title="Voir itinéraire" style="color: #ff0000;" ></i>
-                                    <span title="Voir itinéraire">${dureeMin} min<span>
-                                </a>
-                            </span>
-                            <div class="divNote">
-                                ${bottom_left}
-                            </div>
-                            <span class="distance right">${distanceKm} km</span>
-                            <i class="fas fa-angle-double-down arrow-down"></i>`;
-
-            let codeCanyonExtra = `<div class="canyon-extra">
-                                       <pre style="font-size: 0.8rem">${JSON.stringify(
-                                           canyon[i],
-                                           null,
-                                           2
-                                       )}</pre>
-                                    </div>`;
-
-            let canyonElt = document.createElement("li");
-            canyonElt.classList.add("canyon");
-            canyonElt.innerHTML = codeListe + codeCanyonExtra;
-
-            list_canyon.appendChild(canyonElt);
-        }
-    }
-
-    if (vide) {
-        phrases.push("Aucun canyon trouvé pour ce temps de voiture");
-    }
-
-    // On transforme le tableau de phrases en un seul texte avec des sauts de ligne
-    let infos = phrases.join("\n");
-
-    // On affiche le texte dans l'élément result
-    result.textContent = infos;
-    resultCanyon = listenerCanyonExtra();
-}
-
-function getMaxTime() {
-    return Number(document.getElementById("maxTime").value);
-}
-
-function toRadians(deg) {
-    return deg * (Math.PI / 180);
-}
-
-function haversine(start, end) {
-    const R = 6371.0; // km
-
-    const lon1 = start[0];
-    const lat1 = start[1];
-    const lon2 = end[0];
-    const lat2 = end[1];
-
-    const dlat = lat2 - lat1;
-    const dlon = lon2 - lon1;
-
-    const sinDlat2 = Math.sin(dlat / 2);
-    const sinDlon2 = Math.sin(dlon / 2);
-
-    const a =
-        sinDlat2 * sinDlat2 +
-        Math.cos(lat1) * Math.cos(lat2) * sinDlon2 * sinDlon2;
-    const c = 2 * Math.asin(Math.sqrt(a));
-
-    return R * c;
-}
-
-function getCandidats(maxTime, start) {
-    let startRad = [toRadians(start[0]), toRadians(start[1])];
-    let candidats = [];
-    let maxDistance = AVERAGE_SPEED * (maxTime / 60);
-    dataDB.forEach((canyon) => {
-        let endRad = [toRadians(canyon.long), toRadians(canyon.lat)];
-        let dist = haversine(startRad, endRad);
-        if (dist <= maxDistance) {
-            candidats.push({ ...canyon });
-        }
-    });
-    console.log(candidats);
-    return candidats;
-}
-
-function getCoordMannuelUser(start) {
-    let coordonnee = document.getElementById("coordonnee").value;
-    let regex = /(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/;
-    let match = coordonnee.match(regex);
-
-    if (match) {
-        let lat = parseFloat(match[1]);
-        let lng = parseFloat(match[2]);
-        start = [lng, lat];
-    }
-    return start;
-}
-
-function deleteOldResult() {
-    let partDelete = document.querySelector("div.divResult ul.canyon-list");
-    if (partDelete) {
-        partDelete.remove();
-    }
-}
-
-function listenerCanyonExtra() {
-    const arrow = document.querySelectorAll(".arrow-down");
-    arrow.forEach((button) => {
-        button.addEventListener("click", (e) => {
-            console.log("click !");
-            const canyon = e.target.closest("li.canyon");
-
-            // Ferme les autres si besoin
-            document.querySelectorAll("li.canyon.expanded").forEach((el) => {
-                if (el !== canyon) el.classList.remove("expanded");
-            });
-
-            // Bascule l’état ouvert/fermé
-            canyon.classList.toggle("expanded");
-
-            // Change l'icône
-            if (button.classList.contains("fa-angle-double-down")) {
-                button.classList.remove("fa-angle-double-down");
-                button.classList.add("fa-angle-double-up");
-            } else {
-                button.classList.remove("fa-angle-double-up");
-                button.classList.add("fa-angle-double-down");
-            }
-        });
-    });
 }
 
 // Appel au démarrage
 loadData();
 
-function jsonToCSV(jsonArray) {
-    if (!jsonArray.length) return "";
+/* ================================================================
+   2. Event Listeners
+   ================================================================ */
 
-    const headers = Object.keys(jsonArray[0]); // En-têtes CSV
-    const csvRows = [headers.join(",")]; // première ligne : en-têtes
+els.btn.addEventListener('click', onSearch);
+els.exportBtn.addEventListener('click', onExport);
 
-    jsonArray.forEach((obj) => {
-        const values = headers.map((header) => {
-            let val = obj[header];
-            if (typeof val === "object") val = JSON.stringify(val); // traiter objets imbriqués
-            return `"${String(val).replace(/"/g, '""')}"`; // échappe les guillemets
-        });
-        csvRows.push(values.join(","));
-    });
+// Location radio buttons
+els.radios.forEach((radio, index) => {
+    radio.addEventListener('change', () => onLocationChange(index));
+});
 
-    return csvRows.join("\n");
+// Filter / Sort listeners
+els.resultSearch.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFiltersSort, 200);
+});
+els.minNoteFilter.addEventListener('change', applyFiltersSort);
+els.sortBy.addEventListener('change', applyFiltersSort);
+
+/* ================================================================
+   3. Location Inputs
+   ================================================================ */
+
+let searchInput, suggestions;
+let locationTimeout;
+
+function onLocationChange(index) {
+    // Clean up previous dynamic inputs
+    const oldCity = document.getElementById('divSearchCity');
+    const oldCoord = document.getElementById('divCoordonnee');
+    if (oldCity) oldCity.remove();
+    if (oldCoord) oldCoord.remove();
+
+    if (index === 1) createCitySearchInput();
+    if (index === 2) createCoordInput();
 }
 
-function downloadCSVFromJSON(jsonArray, filename = "canyon.csv") {
-    const csv = jsonToCSV(jsonArray);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+function createCitySearchInput() {
+    const div = document.createElement('div');
+    div.id = 'divSearchCity';
+    div.className = 'dynamic-input';
+    div.innerHTML = `
+        <input type="text" id="search" placeholder="Entrez une ville" autocomplete="off"/>
+        <ul id="suggestions"></ul>
+    `;
+    document.querySelectorAll('.selectLocation label')[1].insertAdjacentElement('afterend', div);
 
-    const link = document.createElement("a");
+    searchInput = document.getElementById('search');
+    suggestions = document.getElementById('suggestions');
+
+    searchInput.addEventListener('input', () => {
+        clearTimeout(locationTimeout);
+        locationTimeout = setTimeout(() => doSearch(searchInput.value.trim()), 300);
+    });
+}
+
+function createCoordInput() {
+    const div = document.createElement('div');
+    div.id = 'divCoordonnee';
+    div.className = 'dynamic-input';
+    div.innerHTML = `<input type="text" id="coordonnee" placeholder="46.728250, 8.183964"/>`;
+    document.querySelectorAll('.selectLocation label')[2].insertAdjacentElement('afterend', div);
+}
+
+async function doSearch(query) {
+    suggestions.innerHTML = '';
+    if (query.length < 3) return;
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+    try {
+        const response = await fetch(url, { headers: { 'User-Agent': 'CanyonRadar/1.0' } });
+        const results = await response.json();
+
+        results.slice(0, 5).forEach((city) => {
+            const li = document.createElement('li');
+            li.textContent = city.display_name;
+            li.addEventListener('mousedown', () => {
+                searchInput.value = city.display_name;
+                suggestions.innerHTML = '';
+                state.start = [parseFloat(city.lon), parseFloat(city.lat)];
+            });
+            suggestions.appendChild(li);
+        });
+    } catch (error) {
+        console.error('API Error:', error);
+    }
+}
+
+/* ================================================================
+   4. Search Flow
+   ================================================================ */
+
+async function onSearch() {
+    clearResults();
+
+    const choice = document.querySelector('input[name="choiceLocation"]:checked')?.value;
+
+    // Resolve start coordinates
+    try {
+        if (choice === 'selectLocation') {
+            if (!state.start) {
+                showToast('Please select a city from the suggestions', 'warning');
+                return;
+            }
+        } else if (choice === 'coordonnee') {
+            state.start = parseManualCoords();
+            if (!state.start) return;
+        } else {
+            await resolveCurrentLocation();
+        }
+    } catch (err) {
+        showToast(err, 'error');
+        return;
+    }
+
+    const maxTime = Number(document.getElementById('maxTime').value);
+
+    showLoading(true);
+
+    const candidates = getCandidates(maxTime, state.start);
+    console.log(`Candidates pre-filtered: ${candidates.length}`);
+
+    if (candidates.length === 0) {
+        showToast('No canyons found within this driving radius', 'info');
+        showLoading(false);
+        return;
+    }
+
+    if (candidates.length > 600) {
+        showToast(`Too many candidates (${candidates.length}). Narrow your search radius.`, 'warning');
+        showLoading(false);
+        return;
+    }
+
+    try {
+        const apiData = await callAPIServer(candidates);
+        console.log('API data:', apiData);
+        buildRawResults(apiData, candidates, maxTime);
+        applyFiltersSort();
+        els.resultsControls.classList.remove('hidden');
+        if (state.filteredResults.length === 0) {
+            showToast('No canyons reachable within the selected time.', 'info');
+        } else {
+            showToast(`${state.filteredResults.length} canyon(s) found!`, 'success');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('An error occurred while calculating routes.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function parseManualCoords() {
+    const val = document.getElementById('coordonnee')?.value || '';
+    const match = val.match(/(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/);
+    if (!match) {
+        showToast('Invalid coordinates format. Use: lat, lng (e.g. 46.728250, 8.183964)', 'warning');
+        return null;
+    }
+    return [parseFloat(match[2]), parseFloat(match[1])]; // [lon, lat]
+}
+
+function resolveCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject('Geolocation is not supported by this browser.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => resolve([pos.coords.longitude, pos.coords.latitude]),
+            (err) => {
+                const msgs = {
+                    [err.PERMISSION_DENIED]: 'Location permission denied.',
+                    [err.POSITION_UNAVAILABLE]: 'Position unavailable.',
+                    [err.TIMEOUT]: 'Geolocation request timed out.'
+                };
+                reject(msgs[err.code] || 'Unknown geolocation error.');
+            }
+        );
+    });
+}
+
+function callAPIServer(candidates) {
+    const end = candidates.map((c) => [c.long, c.lat]);
+    const endStr = encodeURIComponent(JSON.stringify(end));
+
+    return fetch(`/api/duration?start=${state.start.join(',')}&end=${endStr}`)
+        .then((res) => res.json())
+        .then((data) => {
+            if (data.error) throw new Error(data.error);
+            if (!data.durations || !data.durations.length) throw new Error('No routes found');
+            return data;
+        });
+}
+
+/* ================================================================
+   5. Results Building
+   ================================================================ */
+
+function buildRawResults(apiData, candidates, maxTime) {
+    state.rawResults = [];
+
+    for (let i = 0; i < apiData.durations.length; i++) {
+        const durationSec = apiData.durations[i];
+        const distanceM = apiData.distances[i];
+        const c = candidates[i];
+
+        const durationMin = Math.round(durationSec / 60);
+        const distanceKm = Math.round(distanceM / 1000);
+
+        if (durationMin <= maxTime && durationMin >= 0) {
+            state.rawResults.push({
+                canyon: c,
+                durationMin,
+                distanceKm,
+                DC_link: `https://www.descente-canyon.com/canyoning${c.DC_link}`,
+                linkMaps: `https://www.google.com/maps/dir/?api=1&origin=${state.start[1]},${state.start[0]}&destination=${c.lat},${c.long}&travelmode=driving`,
+            });
+        }
+    }
+}
+
+/* ================================================================
+   6. Filter & Sort Logic
+   ================================================================ */
+
+function applyFiltersSort() {
+    const searchVal = els.resultSearch.value.trim().toLowerCase();
+    const minNote = parseFloat(els.minNoteFilter.value);
+    const sortMode = els.sortBy.value;
+
+    let data = [...state.rawResults];
+
+    // Filter by search text
+    if (searchVal) {
+        data = data.filter((r) => r.canyon.name.toLowerCase().includes(searchVal));
+    }
+
+    // Filter by min note
+    if (minNote > 0) {
+        data = data.filter((r) => r.canyon.note >= minNote);
+    }
+
+    // Sort
+    const [key, dir] = sortMode.split('-');
+    data.sort((a, b) => {
+        let va, vb;
+        if (key === 'note') { va = a.canyon.note; vb = b.canyon.note; }
+        else if (key === 'time') { va = a.durationMin; vb = b.durationMin; }
+        else { va = a.canyon.name.toLowerCase(); vb = b.canyon.name.toLowerCase(); }
+
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    state.filteredResults = data;
+    renderResults();
+}
+
+/* ================================================================
+   7. Rendering
+   ================================================================ */
+
+function renderResults() {
+    els.canyonList.innerHTML = '';
+    els.resultPre.textContent = '';
+
+    const count = state.filteredResults.length;
+    els.resultsCount.textContent = count > 0 ? `${count} result${count > 1 ? 's' : ''}` : 'No results';
+
+    if (count === 0) {
+        els.resultPre.textContent = 'No canyons match your filters.';
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    state.filteredResults.forEach((item) => {
+        const c = item.canyon;
+
+        // Stars
+        let ratingHTML = '';
+        if (c.note === 0) {
+            ratingHTML = `<span class="canyon-badge canyon-badge-danger"><i class="fa-solid fa-ban"></i> Forbidden / missing data</span>`;
+        } else {
+            ratingHTML = `<span class="rating-number">${c.note}</span>`;
+            const fullStars = Math.floor(c.note);
+            const halfStar = (c.note - fullStars) >= 0.5;
+            for (let s = 0; s < fullStars; s++) ratingHTML += `<i class="fa-solid fa-star star-icon"></i>`;
+            if (halfStar) ratingHTML += `<i class="fa-solid fa-star-half-stroke star-icon"></i>`;
+        }
+
+        // Cotation badge
+        const cotationBadge = c.cotation && c.cotation !== '??'
+            ? `<span class="canyon-badge canyon-badge-info">${c.cotation}</span>`
+            : '';
+
+        // Extra details (expandable)
+        const extraDetails = buildExtraDetails(c);
+
+        const li = document.createElement('li');
+        li.className = 'canyon';
+        li.innerHTML = `
+            <a href="${item.DC_link}" target="_blank" class="canyon-main-link" aria-label="Open ${c.name} on descente-canyon.com"></a>
+            <div class="canyon-header">
+                <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
+                <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="Open route in Google Maps">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    <span class="route-time">${item.durationMin} min</span>
+                    <span class="route-dist">${item.distanceKm} km</span>
+                </a>
+            </div>
+            <div class="canyon-meta">
+                <div class="canyon-rating" title="Rating out of 4">
+                    ${ratingHTML}
+                </div>
+                <button class="canyon-expand-btn" aria-label="Show details">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="canyon-extra">${extraDetails}</div>
+        `;
+
+        // Expand logic
+        const expandBtn = li.querySelector('.canyon-expand-btn');
+        expandBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isExpanded = li.classList.toggle('expanded');
+            const icon = expandBtn.querySelector('i');
+            icon.classList.toggle('fa-chevron-down', !isExpanded);
+            icon.classList.toggle('fa-chevron-up', isExpanded);
+        });
+
+        fragment.appendChild(li);
+    });
+
+    els.canyonList.appendChild(fragment);
+}
+
+function buildExtraDetails(c) {
+    const fields = [
+        { label: 'Altitude départ', val: c.alt_dep },
+        { label: 'Dénivelé', val: c.deniv },
+        { label: 'Longueur', val: c.longueur },
+        { label: 'Hauteur max', val: c.haut_max },
+        { label: 'Corde', val: c.corde },
+        { label: 'Approche', val: c.tps_approche },
+        { label: 'Descente', val: c.tps_desc },
+        { label: 'Retour', val: c.tps_retour },
+        { label: 'Navette', val: c.navette },
+    ];
+
+    let rows = fields
+        .filter((f) => f.val && f.val !== '??')
+        .map((f) => `<div class="detail-row"><span class="detail-label">${f.label}</span><span class="detail-value">${f.val}</span></div>`)
+        .join('');
+
+    // Parking links
+    if (c.points) {
+        rows += `<div class="detail-section-title"><i class="fa-solid fa-map-pin"></i> Points</div>`;
+        const ptLabels = { depart: 'Départ', arrivee: 'Arrivée', parking_amont: 'Parking amont', parking_aval: 'Parking aval' };
+        Object.entries(c.points).forEach(([key, pt]) => {
+            const label = ptLabels[key] || key;
+            const mapsLink = `https://www.google.com/maps?q=${pt.lat},${pt.long}`;
+            rows += `<div class="detail-row">
+                <span class="detail-label">${label}</span>
+                <a class="detail-value detail-link" href="${mapsLink}" target="_blank">${pt.lat.toFixed(5)}, ${pt.long.toFixed(5)} <i class="fa-solid fa-external-link-alt" style="font-size:0.7em"></i></a>
+            </div>`;
+        });
+    }
+
+    return `<div class="canyon-details-grid">${rows}</div>`;
+}
+
+/* ================================================================
+   8. Utilities
+   ================================================================ */
+
+function getCandidates(maxTime, start) {
+    const maxDist = AVERAGE_SPEED * (maxTime / 60);
+    return state.dataDB.filter((c) => haversineKm(start, [c.long, c.lat]) <= maxDist);
+}
+
+function haversineKm(a, b) {
+    const R = 6371;
+    const dLat = toRad(b[1] - a[1]);
+    const dLon = toRad(b[0] - a[0]);
+    const lat1 = toRad(a[1]);
+    const lat2 = toRad(b[1]);
+
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return R * (2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x)));
+}
+
+function toRad(deg) {
+    return deg * (Math.PI / 180);
+}
+
+function clearResults() {
+    state.rawResults = [];
+    state.filteredResults = [];
+    els.canyonList.innerHTML = '';
+    els.resultPre.textContent = '';
+    els.resultsControls.classList.add('hidden');
+    els.resultsCount.textContent = '';
+}
+
+function showLoading(show) {
+    state.isLoading = show;
+    els.loading.classList.toggle('hidden', !show);
+    els.btn.disabled = show;
+}
+
+/* ================================================================
+   9. Toast Notifications
+   ================================================================ */
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+    const icon = icons[type] || icons.info;
+
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
+    els.toastContainer.appendChild(toast);
+
+    // Trigger reflow
+    toast.offsetHeight;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 350);
+    }, TOAST_DURATION);
+}
+
+/* ================================================================
+   10. Export
+   ================================================================ */
+
+function onExport() {
+    if (state.filteredResults.length === 0) {
+        showToast('No results to export', 'warning');
+        return;
+    }
+
+    const rows = state.filteredResults.map((r) => ({
+        Name: r.canyon.name,
+        Rating: r.canyon.note,
+        Duration_min: r.durationMin,
+        Distance_km: r.distanceKm,
+        Cotation: r.canyon.cotation,
+        Longitude: r.canyon.long,
+        Latitude: r.canyon.lat,
+        Altitude_depart: r.canyon.alt_dep,
+        Denivele: r.canyon.deniv,
+        Longueur: r.canyon.longueur,
+        Hauteur_max: r.canyon.haut_max,
+        Corde: r.canyon.corde,
+        Tps_approche: r.canyon.tps_approche,
+        Tps_descente: r.canyon.tps_desc,
+        Tps_retour: r.canyon.tps_retour,
+        Navette: r.canyon.navette,
+        URL: r.DC_link,
+        Route_URL: r.linkMaps,
+    }));
+
+    downloadCSV(rows, 'canyon_radar_export.csv');
+    showToast('CSV exported successfully', 'success');
+}
+
+function downloadCSV(data, filename) {
+    if (!data.length) return;
+    const headers = Object.keys(data[0]);
+    const csv = [
+        headers.join(','),
+        ...data.map((row) =>
+            headers
+                .map((h) => {
+                    let val = row[h] ?? '';
+                    val = String(val).replace(/"/g, '""');
+                    return `"${val}"`;
+                })
+                .join(',')
+        ),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;
-
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    document.querySelector("#export").addEventListener("click", () => {
-        console.log("canyyyyon", canyonList);
-        downloadCSVFromJSON(canyonList);
-    });
-});
