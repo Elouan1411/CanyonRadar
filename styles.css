@@ -501,15 +501,19 @@ button {
 .search-results i {
     position: absolute;
     left: 0.8rem;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
     color: var(--color-text-muted);
     font-size: 0.85rem;
     pointer-events: none;
+    line-height: 1;
 }
 
 .search-results input {
     padding-left: 2.2rem;
+    width: 100%;
 }
 
 .filter-group,
@@ -1172,6 +1176,7 @@ footer {
     .search-results {
         min-width: unset;
         width: 100%;
+        flex: none;
     }
 
     .search-results input {
@@ -1181,7 +1186,8 @@ footer {
     }
 
     .search-results i {
-        top: 50%;
+        top: 0;
+        bottom: 0;
         left: 0.75rem;
         font-size: 0.8rem;
     }
