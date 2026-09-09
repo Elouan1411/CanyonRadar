@@ -602,6 +602,11 @@ button {
     border-color: #cbd5e1;
 }
 
+.canyon.expanded {
+    grid-column: 1 / -1;
+    background: #fafafa;
+}
+
 /* Single canyon (inverse mode) full-width card */
 .canyon-single {
     grid-column: 1 / -1;
