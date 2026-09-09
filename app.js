@@ -160,7 +160,7 @@ async function onSearch() {
             state.start = parseManualCoords();
             if (!state.start) return;
         } else {
-            await resolveCurrentLocation();
+            state.start = await resolveCurrentLocation();
         }
     } catch (err) {
         showToast(err, 'error');
@@ -259,6 +259,9 @@ function buildRawResults(apiData, candidates, maxTime) {
         const durationSec = apiData.durations[i];
         const distanceM = apiData.distances[i];
         const c = candidates[i];
+
+        // Skip unroutable locations (ORS returns null)
+        if (durationSec === null || distanceM === null) continue;
 
         const durationMin = Math.round(durationSec / 60);
         const distanceKm = Math.round(distanceM / 1000);
