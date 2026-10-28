@@ -153,6 +153,28 @@
                     <i class="fa-solid fa-file-csv"></i> <span id="btn-export">Export to CSV</span>
                 </button>
             </div>
+
+            <!-- Calculation Info Accordion -->
+            <div class="calc-info-accordion">
+                <button type="button" class="calc-info-trigger" id="calcInfoTrigger" aria-expanded="false" aria-controls="calcInfoBody">
+                    <span class="calc-info-trigger-left">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span id="calc-info-title">How are driving times and routes calculated?</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down calc-info-icon"></i>
+                </button>
+                <div class="calc-info-body" id="calcInfoBody">
+                    <p id="calc-info-p1">
+                        This represents <strong>driving time by car only</strong> under normal road conditions (<strong>excluding real-time traffic</strong> and <strong>excluding approach hiking time</strong>). Approach, descent, and return times are listed separately in each canyon's details.
+                    </p>
+                    <p id="calc-info-p2">
+                        Distances and routes are calculated to the canyon's <strong>general coordinates</strong> (main location from descente-canyon.com), and <strong>not to parking lots or in-river start points</strong>.
+                    </p>
+                    <p id="calc-info-p3">
+                        <strong>Why?</strong> Many canyons do not have documented parking coordinates, or require car shuttles with multiple parking locations (upstream/downstream). The general position ensures consistent and reliable calculations for all canyons. You can find detailed parking GPS coordinates (when available) by clicking on any canyon to view its details.
+                    </p>
+                </div>
+            </div>
         </section>
 
         <!-- Results Controls (hidden by default) -->

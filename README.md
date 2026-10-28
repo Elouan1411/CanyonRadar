@@ -56,7 +56,7 @@ canyon-radar/
 ## 💡 Notes
 
 -   Pre-filters canyons by straight-line distance (Haversine formula) 🧮 to reduce API calls.
--   Then uses OpenRouteService 🚗 for precise driving time calculations.
+-   Then uses OpenRouteService 🚗 for precise car driving time calculations (standard conditions, excluding real-time traffic and excluding approach hiking time) based on the canyon's general coordinates (main location on descente-canyon.com), ensuring consistent routing even when specific parking coordinates are absent or when shuttles involve multiple parkings.
 -   Hosted entirely on **Vercel** 🟣 combining frontend and backend for simplicity and security.
 
 ---

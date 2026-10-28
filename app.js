@@ -62,6 +62,11 @@ const i18n = {
         searchCanyon: 'Search a canyon...',
         timeToCanyon: (name, time, dist) => `It takes ${time} min (${dist} km) to reach ${name}`,
         routeOverview: 'Route overview',
+        calcInfoTitle: 'How are driving times and routes calculated?',
+        calcInfoP1: 'This represents <strong>driving time by car only</strong> under normal road conditions (<strong>excluding real-time traffic</strong> and <strong>excluding approach hiking time</strong>). Approach, descent, and return times are listed separately in each canyon\'s details.',
+        calcInfoP2: 'Distances and routes are calculated to the canyon\'s <strong>general coordinates</strong> (main location from descente-canyon.com), and <strong>not to parking lots or in-river start points</strong>.',
+        calcInfoP3: '<strong>Why?</strong> Many canyons do not have documented parking coordinates, or require car shuttles with multiple parking locations (upstream/downstream). The general position ensures consistent and reliable calculations for all canyons. You can find detailed parking GPS coordinates (when available) by clicking on any canyon to view its details.',
+        pointsHelperNote: 'The general route time is calculated to the canyon location. Click any coordinate above to navigate directly to a parking lot or access point.',
     },
     fr: {
         selectLocation: 'Choisir la localisation',
@@ -117,6 +122,11 @@ const i18n = {
         searchCanyon: 'Rechercher un canyon...',
         timeToCanyon: (name, time, dist) => `Il faut ${time} min (${dist} km) pour rejoindre ${name}`,
         routeOverview: 'Aperçu de la route',
+        calcInfoTitle: 'Comment sont calculés les temps de route et distances ?',
+        calcInfoP1: 'Il s\'agit uniquement du <strong>temps de conduite en voiture</strong> en conditions normales de circulation (<strong>sans prise en compte du trafic en temps réel</strong> et <strong>sans compter la marche d\'approche</strong>). Les temps d\'approche, de descente et de retour sont précisés séparément dans les détails de chaque canyon.',
+        calcInfoP2: 'Les distances et temps de route sont calculés jusqu\'aux <strong>coordonnées générales du canyon</strong> (point principal de la fiche descente-canyon.com), et <strong>non jusqu\'aux parkings</strong> ou aux points de départ dans l\'eau.',
+        calcInfoP3: '<strong>Pourquoi ?</strong> Tous les canyons n\'ont pas de coordonnées précises de parking répertoriées, et beaucoup impliquent une navette avec plusieurs parkings (amont / aval). Le point général garantit un calcul homogène et fiable pour tous les canyons. Vous pouvez retrouver les coordonnées GPS des parkings connus en dépliant les détails de chaque canyon.',
+        pointsHelperNote: 'Le temps de route global est calculé jusqu\'au canyon général. Cliquez sur les coordonnées ci-dessus pour naviguer précisément vers un parking ou accès.',
     },
 };
 
@@ -159,6 +169,12 @@ const els = {
     contentInverse: document.getElementById('tab-inverse'),
     searchCanyonInput: document.getElementById('searchCanyon'),
     canyonSuggestions: document.getElementById('canyonSuggestions'),
+    calcInfoTrigger: document.getElementById('calcInfoTrigger'),
+    calcInfoAccordion: document.querySelector('.calc-info-accordion'),
+    calcInfoTitle: document.getElementById('calc-info-title'),
+    calcInfoP1: document.getElementById('calc-info-p1'),
+    calcInfoP2: document.getElementById('calc-info-p2'),
+    calcInfoP3: document.getElementById('calc-info-p3'),
 };
 
 let searchTimeout, canyonSearchTimeout, locationTimeout;
@@ -191,6 +207,12 @@ function applyTranslations() {
     // Buttons
     document.getElementById('btn-find').textContent = t('findTrip');
     document.getElementById('btn-export').textContent = t('exportCSV');
+
+    // Calculation Info
+    if (els.calcInfoTitle) els.calcInfoTitle.textContent = t('calcInfoTitle');
+    if (els.calcInfoP1) els.calcInfoP1.innerHTML = t('calcInfoP1');
+    if (els.calcInfoP2) els.calcInfoP2.innerHTML = t('calcInfoP2');
+    if (els.calcInfoP3) els.calcInfoP3.innerHTML = t('calcInfoP3');
 
     // Result controls
     els.resultSearch.placeholder = t('searchResults');
@@ -264,6 +286,14 @@ if (els.searchCanyonInput) {
     els.searchCanyonInput.addEventListener('input', () => {
         clearTimeout(canyonSearchTimeout);
         canyonSearchTimeout = setTimeout(() => searchCanyonByName(els.searchCanyonInput.value.trim()), 200);
+    });
+}
+
+// Calculation info accordion toggle
+if (els.calcInfoTrigger && els.calcInfoAccordion) {
+    els.calcInfoTrigger.addEventListener('click', () => {
+        const isOpen = els.calcInfoAccordion.classList.toggle('open');
+        els.calcInfoTrigger.setAttribute('aria-expanded', isOpen);
     });
 }
 
@@ -726,6 +756,7 @@ function buildExtraDetails(c) {
                 <a class="detail-value detail-link" href="${mapsLink}" target="_blank">${pt.lat.toFixed(5)}, ${pt.long.toFixed(5)} <i class="fa-solid fa-external-link-alt" style="font-size:0.7em"></i></a>
             </div>`;
         });
+        rows += `<div class="points-helper-note"><i class="fa-solid fa-circle-info"></i> <span>${t('pointsHelperNote')}</span></div>`;
     }
 
     return `<div class="canyon-details-grid">${rows}</div>`;
