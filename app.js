@@ -60,7 +60,7 @@ const i18n = {
         tabInverse: 'Single canyon',
         findCanyon: 'Find a specific canyon',
         searchCanyon: 'Search a canyon...',
-        timeToCanyon: (name, time, dist) => `It takes ${time} min (${dist} km) to reach ${name}`,
+        timeToCanyon: (name, time, dist) => `It takes ${time} (${dist} km) to reach ${name}`,
         routeOverview: 'Route overview',
         calcInfoTitle: 'How are driving times and routes calculated?',
         calcInfoP1: 'This represents <strong>driving time by car only</strong> under normal road conditions (<strong>excluding real-time traffic</strong> and <strong>excluding approach hiking time</strong>). Approach, descent, and return times are listed separately in each canyon\'s details.',
@@ -120,7 +120,7 @@ const i18n = {
         tabInverse: 'Canyon unique',
         findCanyon: 'Rechercher un canyon spécifique',
         searchCanyon: 'Rechercher un canyon...',
-        timeToCanyon: (name, time, dist) => `Il faut ${time} min (${dist} km) pour rejoindre ${name}`,
+        timeToCanyon: (name, time, dist) => `Il faut ${time} (${dist} km) pour rejoindre ${name}`,
         routeOverview: 'Aperçu de la route',
         calcInfoTitle: 'Comment sont calculés les temps de route et distances ?',
         calcInfoP1: 'Il s\'agit uniquement du <strong>temps de conduite en voiture</strong> en conditions normales de circulation (<strong>sans prise en compte du trafic en temps réel</strong> et <strong>sans compter la marche d\'approche</strong>). Les temps d\'approche, de descente et de retour sont précisés séparément dans les détails de chaque canyon.',
@@ -491,7 +491,7 @@ async function onSearchInverse() {
             linkMaps: `https://www.google.com/maps/dir/?api=1&origin=${state.start[1]},${state.start[0]}&destination=${c.lat},${c.long}&travelmode=driving`,
         };
         renderSingleResult(item);
-        showToast(t('timeToCanyon', c.name, durationMin, distanceKm), 'success');
+        showToast(t('timeToCanyon', c.name, formatDuration(durationMin), distanceKm), 'success');
     } catch (err) {
         console.error(err);
         showToast(t('routeError'), 'error');
@@ -623,7 +623,7 @@ function renderResults() {
                 <h3 class="canyon-name">${c.name} ${cotationBadge}</h3>
                 <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="${t('openRoute')}">
                     <i class="fa-solid fa-map-location-dot"></i>
-                    <span class="route-time">${item.durationMin} min</span>
+                    <span class="route-time">${formatDuration(item.durationMin)}</span>
                     <span class="route-dist">${item.distanceKm} km</span>
                 </a>
             </div>
@@ -697,7 +697,7 @@ function renderSingleResult(item) {
         <div class="canyon-single-route">
             <a href="${item.linkMaps}" target="_blank" class="canyon-route-link" title="${t('openRoute')}">
                 <i class="fa-solid fa-map-location-dot"></i>
-                <span class="route-time">${item.durationMin} min</span>
+                <span class="route-time">${formatDuration(item.durationMin)}</span>
                 <span class="route-dist">${item.distanceKm} km</span>
             </a>
         </div>
@@ -765,6 +765,15 @@ function buildExtraDetails(c) {
 /* ================================================================
    10. Utilities
    ================================================================ */
+
+function formatDuration(min) {
+    if (!min && min !== 0) return '';
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (m === 0) return `${h}h`;
+    return `${h}h${m < 10 ? '0' : ''}${m}min`;
+}
 
 function getCandidates(maxTime, start) {
     const maxDist = AVERAGE_SPEED * (maxTime / 60);
